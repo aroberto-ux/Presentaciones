@@ -4,27 +4,14 @@
 //  Mientras `firebaseConfig` sea null la página funciona en MODO LOCAL:
 //  todo se guarda solo en este navegador (sirve para probar).
 //
-//  Para activar la edición colaborativa, crea un proyecto en
-//  https://console.firebase.google.com, añade una app web y pega aquí
-//  el objeto de configuración que te muestra. Los pasos completos
-//  están en el README.md.
-//
-//  Ejemplo:
-//
-//  export const firebaseConfig = {
-//    apiKey: "AIza...",
-//    authDomain: "mi-proyecto.firebaseapp.com",
-//    projectId: "mi-proyecto",
-//    storageBucket: "mi-proyecto.appspot.com",
-//    messagingSenderId: "1234567890",
-//    appId: "1:1234567890:web:abcdef"
-//  };
+//  Con el objeto de abajo se activa la edición colaborativa.
+//  Los pasos completos están en el README.md.
 //
 //  (Esa clave no es secreta: la seguridad la dan las reglas de
 //  Firestore del archivo firestore.rules.)
 // ─────────────────────────────────────────────────────────────
 
-export const firebaseConfig = const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyBn3FAgU8ZjnJRlIGJKjd0xA5Rwy_GQQcA",
   authDomain: "presentaciones-6379f.firebaseapp.com",
   projectId: "presentaciones-6379f",
