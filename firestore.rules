@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────
+//  Reglas de Firestore para la página de presentaciones.
+//  Pégalas en: Firebase Console → Firestore Database → Reglas → Publicar.
+//
+//  Hay dos variantes; deja activa solo UNA (comenta la otra).
+// ─────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ═══ VARIANTE A · Abierta con enlace ═══════════════════════
+    // Cualquier persona que abra la página (sesión anónima) puede ver y editar.
+    // Cómoda para un grupo de clase; no la uses para contenido que deba protegerse.
+    // Requiere habilitar «Anónimo» en Authentication → Método de acceso.
+
+    function ingresado() { return request.auth != null; }
+
+    match /presentaciones/{pid} {
+      allow read: if ingresado();
+      allow create: if ingresado()
+        && request.resource.data.titulo is string
+        && request.resource.data.titulo.size() <= 120;
+      allow update: if ingresado()
+        && request.resource.data.titulo is string
+        && request.resource.data.titulo.size() <= 120;
+      allow delete: if ingresado();
+
+      match /diapositivas/{sid} {
+        allow read: if ingresado();
+        allow write: if ingresado();
+      }
+
+      // Presencia: cada persona solo escribe su propio documento.
+      match /presencia/{uid} {
+        allow read: if ingresado();
+        allow write: if ingresado() && request.auth.uid == uid;
+      }
+    }
+
+    // ═══ VARIANTE B · Solo personas autorizadas ═════════════════
+    // Para usarla: en firebase-config.js pon  autenticacion: 'google',
+    // habilita «Google» en Authentication, borra la variante A de arriba
+    // y descomenta este bloque con los correos que puedan editar.
+    //
+    // function autorizado() {
+    //   return request.auth != null
+    //     && request.auth.token.email_verified == true
+    //     && request.auth.token.email in [
+    //       'persona1@gmail.com',
+    //       'persona2@unal.edu.co'
+    //     ];
+    // }
+    // match /presentaciones/{pid} {
+    //   allow read, write: if autorizado();
+    //   match /diapositivas/{sid} { allow read, write: if autorizado(); }
+    //   match /presencia/{uid} {
+    //     allow read: if autorizado();
+    //     allow write: if autorizado() && request.auth.uid == uid;
+    //   }
+    // }
+  }
+}

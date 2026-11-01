@@ -1,0 +1,30 @@
+/* Reglas de la diapositiva. Se usan igual en el editor, en presentar, al imprimir
+   y dentro del HTML autónomo que se exporta. */
+
+.diap {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  contain: layout paint;
+  transform-origin: 0 0;
+  background: #fff;
+  color: #1c1f23;
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.3;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+.diap *, .diap *::before, .diap *::after { box-sizing: border-box; }
+.diap > * { position: absolute; }
+.diap p { margin: 0 0 .5em; }
+.diap p:last-child { margin-bottom: 0; }
+.diap ul, .diap ol { margin: 0; padding-left: 1.3em; }
+.diap h1, .diap h2, .diap h3, .diap h4, .diap h5, .diap h6 { margin: 0; line-height: 1.15; }
+.diap img { display: block; max-width: none; -webkit-user-drag: none; user-select: none; }
+.diap a { color: inherit; }
+.diap table { border-collapse: collapse; }
+.diap td, .diap th { border: 1px solid currentColor; padding: 6px 10px; }
+.diap pre { margin: 0; white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.diap [data-t="texto"] { overflow-wrap: break-word; }
+.diap blockquote { margin: 0; padding-left: 1em; border-left: 4px solid currentColor; }

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Presentaciones</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@400;700&family=Lora:wght@400;600&family=Roboto+Slab:wght@400;700&family=Space+Grotesk:wght@400;600;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="slide.css">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+
+<div id="banner-local" class="banner" hidden>
+  <span>Modo local: los cambios se guardan solo en este navegador. Configura Firebase (ver README) para editar entre varias personas.</span>
+  <button class="btn-icono" id="banner-cerrar" aria-label="Cerrar aviso">×</button>
+</div>
+
+<!-- Inicio de sesión (solo si autenticacion = 'google') -->
+<main id="vista-login" class="centrado" hidden>
+  <div class="tarjeta-login">
+    <h1>Presentaciones</h1>
+    <p>Inicia sesión para ver y editar las presentaciones compartidas.</p>
+    <button class="btn primario grande" id="btn-google">Continuar con Google</button>
+  </div>
+</main>
+
+<!-- Lista -->
+<main id="vista-lista" hidden>
+  <header class="lista-top">
+    <h1 id="lista-titulo">Presentaciones</h1>
+    <div class="lista-acciones">
+      <button class="btn" id="btn-importar">Importar JSON</button>
+      <button class="btn primario" id="btn-nueva">＋ Nueva presentación</button>
+    </div>
+  </header>
+  <p id="lista-vacia" class="vacio" hidden>Todavía no hay presentaciones. Crea la primera con «Nueva presentación».</p>
+  <section id="rejilla" class="rejilla" aria-live="polite"></section>
+  <input type="file" id="input-importar" accept="application/json,.json" hidden>
+</main>
+
+<!-- Editor -->
+<div id="vista-editor" hidden>
+  <header class="ed-top">
+    <button class="btn-icono" id="btn-volver" aria-label="Volver a la lista" title="Volver a la lista">←</button>
+    <input id="ed-titulo" class="ed-titulo" type="text" maxlength="120" aria-label="Título de la presentación" spellcheck="false">
+    <span id="ed-estado" class="ed-estado" role="status"></span>
+    <span class="espacio"></span>
+    <div id="ed-presencia" class="presencia" aria-label="Personas conectadas"></div>
+    <button class="btn-icono" id="btn-deshacer" title="Deshacer (Ctrl+Z)" aria-label="Deshacer">↶</button>
+    <button class="btn-icono" id="btn-rehacer" title="Rehacer (Ctrl+Y)" aria-label="Rehacer">↷</button>
+    <button class="btn" id="btn-compartir">Compartir</button>
+    <button class="btn" id="btn-exportar">Exportar ▾</button>
+    <button class="btn primario" id="btn-presentar">▶ Presentar</button>
+    <button class="btn-icono solo-movil" id="btn-panel" aria-label="Propiedades">⚙</button>
+  </header>
+
+  <div class="ed-cuerpo">
+    <aside id="panel-diap" class="panel-diap" aria-label="Diapositivas">
+      <div id="lista-diap" class="lista-diap"></div>
+      <button class="btn nueva-diap" id="btn-nueva-diap">＋ Diapositiva</button>
+    </aside>
+
+    <section id="centro" class="centro">
+      <div id="barra-ins" class="barra-ins" role="toolbar" aria-label="Insertar">
+        <button class="btn" id="ins-texto">Texto ▾</button>
+        <button class="btn" id="ins-forma">Formas ▾</button>
+        <button class="btn" id="ins-imagen">Imagen ▾</button>
+        <button class="btn" id="ins-html">‹/› Bloque HTML</button>
+      </div>
+
+      <div id="lienzo" class="lienzo">
+        <div id="marco" class="marco">
+          <div id="stage" class="diap ed"></div>
+          <div id="overlay" class="overlay">
+            <div id="remotos"></div>
+            <div id="guia-v" class="guia guia-v" hidden></div>
+            <div id="guia-h" class="guia guia-h" hidden></div>
+            <div id="selbox" class="selbox" hidden>
+              <i class="h h-nw" data-h="nw"></i><i class="h h-n" data-h="n"></i><i class="h h-ne" data-h="ne"></i>
+              <i class="h h-e" data-h="e"></i><i class="h h-se" data-h="se"></i><i class="h h-s" data-h="s"></i>
+              <i class="h h-sw" data-h="sw"></i><i class="h h-w" data-h="w"></i><i class="h h-rot" data-h="rot"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="barra-inf">
+        <span id="info-diap"></span>
+        <span class="espacio"></span>
+        <label class="zoom">Zoom
+          <select id="zoom" aria-label="Zoom">
+            <option value="ajustar">Ajustar</option>
+            <option value="0.5">50 %</option>
+            <option value="0.75">75 %</option>
+            <option value="1">100 %</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <aside id="panel-der" class="panel-der" aria-label="Propiedades">
+      <nav class="tabs" role="tablist">
+        <button role="tab" class="tab activa" data-tab="diseno">Diseño</button>
+        <button role="tab" class="tab" data-tab="codigo">Código</button>
+        <button role="tab" class="tab" data-tab="notas">Notas</button>
+      </nav>
+      <div id="tab-diseno" class="tab-cuerpo"></div>
+      <div id="tab-codigo" class="tab-cuerpo" hidden>
+        <div class="codigo-barra">
+          <select id="codigo-alcance" aria-label="Qué código editar">
+            <option value="slide">Diapositiva completa</option>
+            <option value="elemento">Elemento seleccionado</option>
+          </select>
+          <button class="btn" id="btn-recargar" title="Descartar y volver a cargar">Recargar</button>
+          <button class="btn primario" id="btn-aplicar" title="Ctrl+Enter">Aplicar</button>
+        </div>
+        <textarea id="codigo" class="codigo" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código HTML"></textarea>
+        <p id="codigo-estado" class="codigo-estado" role="status"></p>
+        <details class="ayuda-codigo">
+          <summary>Cómo funciona</summary>
+          <ul>
+            <li>Cada elemento es una etiqueta con <code>style="position:absolute; left; top; width…"</code> sobre un lienzo de 1280×720 px.</li>
+            <li>El orden en el código es el orden de capas: lo último queda encima.</li>
+            <li>Conserva <code>data-eid</code> para que los cambios se apliquen al mismo elemento; sin él se crea uno nuevo.</li>
+            <li>Se permiten estilos en línea y SVG. Se eliminan <code>&lt;script&gt;</code>, <code>&lt;style&gt;</code>, formularios y eventos <code>onclick</code>.</li>
+          </ul>
+        </details>
+      </div>
+      <div id="tab-notas" class="tab-cuerpo" hidden>
+        <label class="campo"><span>Notas del orador (solo las ven quienes editan o presentan con la tecla N)</span>
+          <textarea id="notas" rows="12" aria-label="Notas de la diapositiva"></textarea>
+        </label>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- Presentar -->
+<div id="vista-presentar" class="presentar" hidden>
+  <div id="pres-diap" class="diap pres-diap"></div>
+  <div id="pres-notas" class="pres-notas" hidden></div>
+  <div id="pres-ctl" class="pres-ctl">
+    <button class="btn-icono claro" id="pres-prev" aria-label="Anterior">‹</button>
+    <span id="pres-cont" class="pres-cont"></span>
+    <button class="btn-icono claro" id="pres-sig" aria-label="Siguiente">›</button>
+    <button class="btn-icono claro" id="pres-full" aria-label="Pantalla completa" title="Pantalla completa (F)">⛶</button>
+    <button class="btn-icono claro" id="pres-salir" aria-label="Salir" title="Salir (Esc)">✕</button>
+  </div>
+  <div id="pres-progreso" class="pres-progreso"></div>
+</div>
+
+<div id="print-root"></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<input type="file" id="input-imagen" accept="image/*" hidden>
+
+</body>
+</html>
