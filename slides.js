@@ -4,7 +4,7 @@
 //   { orden, bg: 'css del fondo', notas: '', el: { <id>: { z: 1, h: '<div …>…</div>' } } }
 // Cada elemento es un trozo de HTML con posición absoluta sobre un lienzo de 1280×720.
 
-import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo } from './sanitize.js';
+import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo, dividirDecls } from './sanitize.js';
 
 export const ANCHO = 1280;
 export const ALTO = 720;
@@ -253,7 +253,11 @@ export function fijarRotacion(n, deg) {
 
 const RE_DATA = /data:image\/[a-z+]+;base64,[A-Za-z0-9+/=]{300,}/g;
 
-function datosEn(h) { return h.match(RE_DATA) || []; }
+// Las imágenes incrustadas se numeran en el orden en que aparecen en el código que se muestra.
+function datosEn(id, h) {
+  const r = nodoDesdeHTML(h);
+  return r ? (bonito(r.nodo, id).match(RE_DATA) || []) : [];
+}
 
 function abreviar(h, id) {
   let i = 0;
@@ -263,7 +267,7 @@ function abreviar(h, id) {
 function restaurar(texto, previos) {
   return texto.replace(/data:imagen-incrustada:(e[a-z0-9]+):(\d+)/g, (_, id, i) => {
     const p = previos[id];
-    return (p && datosEn(p.h)[Number(i)]) || '';
+    return (p && datosEn(id, p.h)[Number(i)]) || '';
   });
 }
 
@@ -271,11 +275,31 @@ function sangrar(txt, pref) {
   return txt.split('\n').map((l) => pref + l).join('\n');
 }
 
+const VACIAS = new Set(['img', 'br', 'hr', 'col']);
+const escAttr = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+
+/** HTML legible de un elemento: atributos primero y el estilo con una propiedad por línea. */
+function bonito(nodo, id) {
+  const tag = nodo.localName;
+  const attrs = Array.from(nodo.attributes).filter((a) => a.name !== 'data-eid' && a.name !== 'style' && a.name !== 'data-t');
+  const t = nodo.getAttribute('data-t');
+  const partes = [`data-eid="${id}"`];
+  if (t) partes.push(`data-t="${escAttr(t)}"`);
+  for (const a of attrs) partes.push(`${a.name}="${escAttr(a.value)}"`);
+  const st = limpiarEstilo(nodo.getAttribute('style') || '');
+  let abre = `<${tag} ${partes.join(' ')}`;
+  if (st) {
+    const decls = dividirDecls(st).map((d) => d.trim()).filter(Boolean);
+    abre += ` style="\n${decls.map((d) => `  ${escAttr(d)};`).join('\n')}\n"`;
+  }
+  abre += '>';
+  return VACIAS.has(tag) ? abre : `${abre}${nodo.innerHTML}</${tag}>`;
+}
+
 function conId(id, h) {
   const r = nodoDesdeHTML(h);
   if (!r) return '';
-  r.nodo.setAttribute('data-eid', id);
-  return abreviar(r.nodo.outerHTML, id);
+  return abreviar(bonito(r.nodo, id), id);
 }
 
 export function serializarCodigo(slide) {

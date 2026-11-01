@@ -10,6 +10,8 @@ import {
 } from './slides.js';
 import { nodoDesdeHTML } from './sanitize.js';
 import { descargarHTML, descargarJSON, imprimir } from './exportar.js';
+import { crearEditorCodigo } from './codigo-editor.js';
+import { iniciarPaneles, alternarModoCodigo, pestanaActiva, aplicar as aplicarPaneles } from './paneles.js';
 
 let enEditor = false;
 let cableado = false;
@@ -25,6 +27,11 @@ let tabActual = 'diseno';
 let codigoSucio = false;
 let codigoBase = '';
 let codigoPendiente = false;
+let CE = null;                 // editor de código
+let sesionAuto = null;         // cambios hechos con «aplicar al escribir» (un solo paso de deshacer)
+let sincronizandoCursor = false;
+let moverPendiente = false;
+const ajustesCE = { tam: 13, ajuste: true, auto: false };
 let arrastrandoDiap = null;
 let nudge = null;
 let pegados = 0;
@@ -73,6 +80,7 @@ export function entrarEditor(pid, n) {
   indiceInicial = idx; irAPend = null; creandoInicial = false; panelClave = ''; codigoSucio = false; codigoBase = '';
   document.body.classList.add('modo-editor');
   E.vistaEditor.hidden = false;
+  aplicarPaneles();
   E.stage.replaceChildren();
   E.listaDiap.replaceChildren(); miniaturas = new Map();
   E.titulo.value = '';
@@ -117,6 +125,8 @@ export function salirEditor() {
 }
 
 function vaciarPendientes() {
+  if (CE && codigoSucio && E.autoAplicar.checked) { clearTimeout(timers.auto); aplicarCodigo({ auto: true }); }
+  cerrarSesionAuto();
   guardarNotas();
   if (nudge) { clearTimeout(nudge.t); const { id, antes } = nudge; nudge = null; terminarGesto(id, antes); }
   for (const [id, t] of empuje) { clearTimeout(t); empuje.delete(id); enviarEl(id); }
@@ -397,7 +407,7 @@ function aplicarCambios(sid, cambios, bg, { registrar = true } = {}) {
   if (bg) { sl.bg = bg.despues; parche.bg = bg.despues; }
   if (Object.keys(parche).length) S.store.actualizarDiapositiva(S.pid, sid, parche);
   if (registrar) registrarOp({ sid, cambios: cambios.map((c) => ({ id: c.id, antes: c.antes, despues: c.despues })), bg });
-  if (sid === S.sid) reconciliar(E.stage, sl, S.ocupado);
+  if (sid === S.sid) { reconciliar(E.stage, sl, S.ocupado); programarSyncCodigo(); }
   programarMiniatura(sid);
   if (pesoDiapositiva(sl) > LIMITE_BYTES) aviso('Esta diapositiva ya es demasiado pesada y puede no guardarse. Quita imágenes incrustadas o usa direcciones web.', 'error', 6000);
 }
@@ -410,7 +420,7 @@ function registrarOp(op) {
 }
 
 function actualizarBotonesUndo() {
-  E.btnDeshacer.disabled = !S.undo.length;
+  E.btnDeshacer.disabled = !S.undo.length && !sesionAuto;
   E.btnRehacer.disabled = !S.redo.length;
 }
 
@@ -424,6 +434,7 @@ function revertir(op, atras) {
 
 function deshacer() {
   if (S.editando) return;
+  cerrarSesionAuto();
   const op = S.undo.pop();
   if (!op) return;
   S.redo.push(op);
@@ -433,6 +444,7 @@ function deshacer() {
 
 function rehacer() {
   if (S.editando) return;
+  cerrarSesionAuto();
   const op = S.redo.pop();
   if (!op) return;
   S.undo.push(op);
@@ -458,6 +470,7 @@ function enviarEl(id) {
   sl.el[id] = { z: sl.el[id].z, h: hn };
   S.store.actualizarDiapositiva(S.pid, sl.id, { ['el.' + id]: { z: sl.el[id].z, h: hn } });
   programarMiniatura(sl.id);
+  programarSyncCodigo();
 }
 
 function empujarEl(id) {
@@ -484,6 +497,7 @@ function seleccionar(id) {
   actualizarOverlay();
   actualizarPanel();
   if (E.alcance.value === 'elemento') sincronizarCodigo(true);
+  else marcarElementoEnCodigo({ mover: !!id });
   publicarPresencia();
 }
 
@@ -1289,29 +1303,119 @@ function textoCodigo() {
   return serializarCodigo(sl);
 }
 
+// Relación entre líneas del código y elementos del lienzo. Cada elemento empieza en una
+// línea con «<etiqueta data-eid="…"», así que basta mirar hacia arriba desde el cursor.
+const RE_EID = /^\s*<[A-Za-z][\w:-]*\s+data-eid="(e[a-z0-9]+)"/;
+const RE_SECCION = /^\s*<\/?section/;
+
+function eidEnLinea(texto, linea) {
+  const ls = texto.split('\n');
+  if (linea < 0 || linea >= ls.length || RE_SECCION.test(ls[linea])) return null;
+  for (let i = linea; i >= 0; i--) {
+    if (RE_SECCION.test(ls[i])) return null;
+    const m = RE_EID.exec(ls[i]);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function rangoDeEid(texto, id) {
+  const ls = texto.split('\n');
+  const ini = ls.findIndex((l) => { const m = RE_EID.exec(l); return m && m[1] === id; });
+  if (ini < 0) return null;
+  let fin = ls.length - 1;
+  for (let i = ini + 1; i < ls.length; i++) if (RE_EID.test(ls[i]) || RE_SECCION.test(ls[i])) { fin = i - 1; break; }
+  while (fin > ini && !ls[fin].trim()) fin--;
+  return { ini, fin };
+}
+
+/** Resalta en el código el elemento seleccionado y, si se pide, lleva el cursor hasta él. */
+function marcarElementoEnCodigo({ mover = false } = {}) {
+  if (!CE || tabActual !== 'codigo') return;
+  if (E.alcance.value !== 'slide' || !S.sel) { CE.resaltarRango(null); return; }
+  const r = rangoDeEid(CE.getValor(), S.sel);
+  if (!r) { CE.resaltarRango(null); if (mover) moverPendiente = true; return; }
+  CE.resaltarRango(r.ini, r.fin);
+  if (mover && !sincronizandoCursor) {
+    const l = CE.cursor().linea;
+    if (l < r.ini || l > r.fin) CE.irALinea(r.ini);
+  }
+}
+
+function alCursorCodigo(info, porUsuario) {
+  E.codigoPos.textContent = `Ln ${info.linea + 1}, Col ${info.col}`;
+  if (!porUsuario || E.alcance.value !== 'slide') return;
+  const id = eidEnLinea(CE.getValor(), info.linea);
+  if (id && id !== S.sel && nodoPorId(id)) {
+    sincronizandoCursor = true;
+    try { seleccionar(id); } finally { sincronizandoCursor = false; }
+  }
+}
+
+function programarSyncCodigo() {
+  if (!CE || tabActual !== 'codigo' || timers.syncCodigo) return;
+  timers.syncCodigo = setTimeout(() => { timers.syncCodigo = 0; if (enEditor) sincronizarCodigo(); }, 160);
+}
+
 function sincronizarCodigo(forzar = false) {
+  if (!CE) return;
   if (tabActual !== 'codigo') { codigoPendiente = true; if (forzar) codigoSucio = false; return; }
   const esEl = E.alcance.value === 'elemento';
   if (esEl && !S.sel) {
-    E.codigo.value = ''; E.codigo.disabled = true; E.codigo.placeholder = 'Selecciona un elemento en el lienzo para editar su HTML.';
+    CE.setValor('');
+    CE.setDeshabilitado(true, 'Selecciona un elemento en el lienzo para editar su HTML.');
     codigoSucio = false; codigoBase = ''; estadoCodigo('');
     return;
   }
-  E.codigo.disabled = false; E.codigo.placeholder = '';
+  CE.setDeshabilitado(false);
   const texto = textoCodigo();
   if (codigoSucio && !forzar) {
     if (texto !== codigoBase) estadoCodigo('Alguien cambió esta diapositiva. «Recargar» descarta tu texto y muestra la versión nueva.', 'error');
     return;
   }
-  if (E.codigo.value !== texto) E.codigo.value = texto;
+  if (CE.tieneFoco() && !forzar) return; // no pisar lo que la persona está escribiendo
+  if (CE.getValor() !== texto) CE.setValor(texto);
   codigoBase = texto; codigoSucio = false; codigoPendiente = false;
   if (forzar) estadoCodigo('');
+  marcarElementoEnCodigo({ mover: moverPendiente });
+  moverPendiente = false;
 }
 
-function aplicarCodigo() {
-  const sl = slideActual();
+function alCambiarCodigo() {
+  codigoSucio = CE.getValor() !== codigoBase;
+  if (!codigoSucio) { estadoCodigo(''); return; }
+  if (E.autoAplicar.checked) {
+    estadoCodigo('Se aplicará al dejar de escribir…');
+    clearTimeout(timers.auto);
+    timers.auto = setTimeout(() => { if (enEditor && codigoSucio) aplicarCodigo({ auto: true }); }, 900);
+  } else {
+    estadoCodigo('Cambios sin aplicar · Ctrl+Enter para aplicar');
+  }
+}
+
+/** Convierte en UN solo paso de deshacer todo lo aplicado automáticamente mientras se escribía. */
+function cerrarSesionAuto() {
+  const ses = sesionAuto;
+  sesionAuto = null;
+  if (!ses) return;
+  const sl = slidePorId(ses.sid);
   if (!sl) return;
-  const txt = E.codigo.value;
+  const cambios = [];
+  for (const [id, antes] of ses.antes) {
+    const despues = sl.el && sl.el[id] ? { z: sl.el[id].z, h: sl.el[id].h } : null;
+    if (!antes && !despues) continue;
+    if (antes && despues && antes.z === despues.z && antes.h === despues.h) continue;
+    cambios.push({ id, antes, despues });
+  }
+  const bgAhora = sl.bg || '#ffffff';
+  const bg = ses.bgAntes !== undefined && ses.bgAntes !== bgAhora ? { antes: ses.bgAntes, despues: bgAhora } : null;
+  if (cambios.length || bg) registrarOp({ sid: ses.sid, cambios, bg });
+}
+
+function aplicarCodigo({ auto = false } = {}) {
+  const sl = slideActual();
+  if (!sl || !CE) return;
+  const txt = CE.getValor();
   let cambios = [], bg = null, info;
   if (E.alcance.value === 'elemento') {
     if (!S.sel) return;
@@ -1338,7 +1442,25 @@ function aplicarCodigo() {
   }
   const extra = [...(info.avisos || [])];
   if (info.quitados) extra.push(`Se eliminaron ${info.quitados} etiquetas o atributos no permitidos.`);
-  if (!cambios.length && !bg) { estadoCodigo(['Sin cambios.', ...extra].join(' ')); return; }
+  if (!cambios.length && !bg) {
+    if (auto) { codigoBase = txt; codigoSucio = false; estadoCodigo(extra.join(' ')); }
+    else estadoCodigo(['Sin cambios.', ...extra].join(' '));
+    return;
+  }
+  if (auto) {
+    // Se aplica en vivo, pero el historial recibe un único paso al terminar de escribir.
+    if (sesionAuto && sesionAuto.sid !== sl.id) cerrarSesionAuto();
+    if (!sesionAuto) sesionAuto = { sid: sl.id, antes: new Map(), bgAntes: undefined };
+    for (const c of cambios) if (!sesionAuto.antes.has(c.id)) sesionAuto.antes.set(c.id, c.antes);
+    if (bg && sesionAuto.bgAntes === undefined) sesionAuto.bgAntes = bg.antes;
+    aplicarCambios(sl.id, cambios, bg, { registrar: false });
+    actualizarBotonesUndo();
+    codigoBase = txt; codigoSucio = false;
+    refrescarTrasCambio();
+    estadoCodigo(['Aplicado automáticamente.', ...extra].join(' '), 'ok');
+    return;
+  }
+  cerrarSesionAuto();
   aplicarCambios(sl.id, cambios, bg);
   codigoSucio = false;
   refrescarTrasCambio();
@@ -1365,11 +1487,12 @@ function guardarNotas() {
 
 function cambiarTab(t) {
   tabActual = t;
+  pestanaActiva(t);
   $$('.tab', E.panelDer).forEach((b) => { const a = b.dataset.tab === t; b.classList.toggle('activa', a); b.setAttribute('aria-selected', a); });
   E.tabDiseno.hidden = t !== 'diseno';
   E.tabCodigo.hidden = t !== 'codigo';
   E.tabNotas.hidden = t !== 'notas';
-  if (t === 'codigo') sincronizarCodigo();
+  if (t === 'codigo') { sincronizarCodigo(); if (CE) CE.refrescar(); }
   if (t === 'notas') sincronizarNotas();
 }
 
@@ -1564,19 +1687,40 @@ function prepararUnaVez() {
 
   $$('.tab', E.panelDer).forEach((b) => b.addEventListener('click', () => cambiarTab(b.dataset.tab)));
 
-  E.alcance.addEventListener('change', () => { codigoSucio = false; sincronizarCodigo(true); });
-  E.codigo.addEventListener('input', () => { codigoSucio = E.codigo.value !== codigoBase; if (codigoSucio) estadoCodigo('Cambios sin aplicar · Ctrl+Enter para aplicar'); });
-  E.codigo.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      E.codigo.setRangeText('  ', E.codigo.selectionStart, E.codigo.selectionEnd, 'end');
-      E.codigo.dispatchEvent(new Event('input'));
-    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault(); aplicarCodigo();
-    }
+  // Editor de código (inspirado en Overleaf)
+  try { Object.assign(ajustesCE, JSON.parse(localStorage.getItem('pres.ce.v1') || '{}')); } catch { /* ignorar */ }
+  const guardarCE = () => { try { localStorage.setItem('pres.ce.v1', JSON.stringify(ajustesCE)); } catch { /* ignorar */ } };
+  CE = crearEditorCodigo(E.codigoEd, {
+    tam: ajustesCE.tam, ajuste: ajustesCE.ajuste,
+    alCambiar: alCambiarCodigo,
+    alAplicar: () => aplicarCodigo(),
+    alCursor: alCursorCodigo,
+    alPerderFoco: () => { cerrarSesionAuto(); if (enEditor) sincronizarCodigo(); },
   });
-  $('#btn-aplicar').addEventListener('click', aplicarCodigo);
-  $('#btn-recargar').addEventListener('click', () => { codigoSucio = false; sincronizarCodigo(true); estadoCodigo('Código recargado.'); });
+  E.autoAplicar.checked = !!ajustesCE.auto;
+  const pintarAjuste = () => { $('#btn-ajuste').setAttribute('aria-pressed', String(CE.getAjuste())); };
+  pintarAjuste();
+
+  iniciarPaneles(() => { CE.refrescar(); ajustarEscala(); actualizarOverlay(); });
+  $('#btn-expandir').addEventListener('click', () => {
+    const on = alternarModoCodigo();
+    if (on) cambiarTab('codigo');
+    CE.refrescar(); ajustarEscala(); actualizarOverlay();
+    if (on) CE.enfocar();
+  });
+  $('#btn-fuente-mas').addEventListener('click', () => { ajustesCE.tam = CE.setTam(CE.getTam() + 1); guardarCE(); });
+  $('#btn-fuente-menos').addEventListener('click', () => { ajustesCE.tam = CE.setTam(CE.getTam() - 1); guardarCE(); });
+  $('#btn-ajuste').addEventListener('click', () => { ajustesCE.ajuste = CE.setAjuste(!CE.getAjuste()); pintarAjuste(); guardarCE(); });
+  $('#btn-buscar').addEventListener('click', () => CE.abrirBuscar(false));
+  E.autoAplicar.addEventListener('change', () => {
+    ajustesCE.auto = E.autoAplicar.checked; guardarCE();
+    if (E.autoAplicar.checked) { if (codigoSucio) alCambiarCodigo(); }
+    else { clearTimeout(timers.auto); cerrarSesionAuto(); if (codigoSucio) estadoCodigo('Cambios sin aplicar · Ctrl+Enter para aplicar'); }
+  });
+
+  E.alcance.addEventListener('change', () => { cerrarSesionAuto(); codigoSucio = false; sincronizarCodigo(true); });
+  $('#btn-aplicar').addEventListener('click', () => aplicarCodigo());
+  $('#btn-recargar').addEventListener('click', () => { clearTimeout(timers.auto); cerrarSesionAuto(); codigoSucio = false; sincronizarCodigo(true); estadoCodigo('Código recargado.'); });
 
   E.notas.addEventListener('input', () => { clearTimeout(timers.notas); timers.notas = setTimeout(guardarNotas, 700); });
   E.notas.addEventListener('blur', guardarNotas);

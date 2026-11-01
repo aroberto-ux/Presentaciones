@@ -44,7 +44,7 @@ function hrefSeguro(u) {
 
 // ── CSS en línea ────────────────────────────────────────────────────────
 
-function dividirDecls(css) {
+export function dividirDecls(css) {
   const out = [];
   let cur = '';
   let depth = 0;

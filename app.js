@@ -21,7 +21,10 @@ function referencias() {
     remotos: $('#remotos'), guiaV: $('#guia-v'), guiaH: $('#guia-h'), selbox: $('#selbox'),
     info: $('#info-diap'), zoom: $('#zoom'), inputImagen: $('#input-imagen'),
     panelDer: $('#panel-der'), tabDiseno: $('#tab-diseno'), tabCodigo: $('#tab-codigo'), tabNotas: $('#tab-notas'),
-    alcance: $('#codigo-alcance'), codigo: $('#codigo'), codigoEstado: $('#codigo-estado'), notas: $('#notas'),
+    alcance: $('#codigo-alcance'), codigoEd: $('#codigo-ed'), codigoPos: $('#codigo-pos'), autoAplicar: $('#auto-aplicar'),
+    codigoEstado: $('#codigo-estado'), notas: $('#notas'),
+    cuerpo: $('#ed-cuerpo'), divisorDiap: $('#divisor-diap'), divisorDer: $('#divisor-der'),
+    chevDiap: $('#chev-diap'), chevDer: $('#chev-der'), btnExpandir: $('#btn-expandir'),
     presDiap: $('#pres-diap'), presNotas: $('#pres-notas'), presCont: $('#pres-cont'), presProgreso: $('#pres-progreso'),
     presPrev: $('#pres-prev'), presSig: $('#pres-sig'), presFull: $('#pres-full'), presSalir: $('#pres-salir'),
   });

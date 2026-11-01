@@ -63,6 +63,18 @@ elementos distintos de la misma diapositiva **no se pisan**. Si dos personas edi
 Límite de Firestore: ≈ 1 MB por diapositiva. Las imágenes subidas se reducen y se incrustan; si una diapositiva se llena,
 usa imágenes por dirección web (`https://…`).
 
+## Editor de código (al estilo Overleaf)
+
+En la pestaña **Código** del panel derecho:
+
+- **Ensanchar**: arrastra el divisor entre la diapositiva y el panel (doble clic = restablecer; con el teclado, enfócalo y usa ← →). La pestaña Código recuerda su propio ancho.
+- **Modo dividido** (botón ⤢): el código ocupa la izquierda y la diapositiva se ve en vivo a la derecha. Vuelve con ⤡.
+- **Plegar** la lista de diapositivas o el panel con la flecha que aparece sobre cada divisor.
+- **Editor real**: números de línea (también con líneas ajustadas), colores de HTML y de los estilos CSS, buscar y reemplazar (Ctrl+F / Ctrl+H), autocompletado de etiquetas, propiedades CSS y valores (Ctrl+Espacio), sangría automática, cierre de etiquetas y comillas, tamaño de letra (A− A+) y ajuste de líneas largas.
+- **Código ordenado**: cada propiedad CSS va en su propia línea para que sea legible. Al aplicar, se vuelve a normalizar.
+- **Sincronía con el lienzo**: al poner el cursor dentro de un elemento, se selecciona en el lienzo; al seleccionar un elemento en el lienzo, su código se resalta y el cursor salta a él.
+- **Aplicar al escribir**: la diapositiva se actualiza sola poco después de dejar de teclear. Todo lo aplicado así cuenta como **un solo paso** de deshacer. También puedes aplicar a mano con Ctrl+Enter.
+
 ## El código HTML de una diapositiva
 
 ```html
@@ -96,12 +108,16 @@ usa imágenes por dirección web (`https://…`).
 | Ctrl+] / Ctrl+[ | Subir / bajar capa |
 | Mayús al mover | Bloquear eje · Alt: sin imán |
 | Ctrl+Enter (en Código) | Aplicar el código |
+| Ctrl+F / Ctrl+H (en Código) | Buscar / reemplazar |
+| Ctrl+Espacio (en Código) | Autocompletar |
+| Tab / Mayús+Tab (en Código) | Sangrar / quitar sangría |
 | ← → / Espacio (presentar) | Anterior / siguiente · `F` pantalla completa · `N` notas · `Esc` salir |
 
 ## Archivos
 
 - `index.html`, `styles.css`, `slide.css` — estructura y estilos (`slide.css` también se usa al exportar).
 - `app.js` (arranque y rutas), `lista.js`, `editor.js`, `presentar.js`, `exportar.js` — pantallas.
+- `codigo-editor.js` — el editor de código (sin dependencias). `paneles.js` — divisores y modo dividido.
 - `store.js` — acceso a datos (Firebase o modo local). `slides.js` — modelo de diapositivas. `sanitize.js` — limpieza del HTML.
 - `firebase-config.js` — **el único archivo que debes editar** para activar Firebase.
 - `firestore.rules` — reglas de seguridad.
