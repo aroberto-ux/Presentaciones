@@ -24,7 +24,15 @@
 //  Firestore del archivo firestore.rules.)
 // ─────────────────────────────────────────────────────────────
 
-export const firebaseConfig = null;
+export const firebaseConfig = const firebaseConfig = {
+  apiKey: "AIzaSyBn3FAgU8ZjnJRlIGJKjd0xA5Rwy_GQQcA",
+  authDomain: "presentaciones-6379f.firebaseapp.com",
+  projectId: "presentaciones-6379f",
+  storageBucket: "presentaciones-6379f.firebasestorage.app",
+  messagingSenderId: "1021153712954",
+  appId: "1:1021153712954:web:74e42f23b056efdb5c0e03",
+  measurementId: "G-6HXTJCKM83"
+};
 
 export const opciones = {
   // 'anonima': quien abre el enlace entra directo y elige un nombre.
