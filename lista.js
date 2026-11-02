@@ -1,9 +1,9 @@
 // Lista de presentaciones: tarjetas, crear, renombrar, duplicar, eliminar, importar.
 
-import { S, E } from './estado.js';
-import { h, aviso, pedir, confirmar, abrirMenu, hace } from './ui.js';
-import { TEMAS, diapositivaDesdeLayout, pintarDiapositiva, sanearImportado } from './slides.js';
-import { descargarJSON } from './exportar.js';
+import { S, E } from './estado.js?v=2026.11.02-a';
+import { h, aviso, pedir, confirmar, abrirMenu, hace } from './ui.js?v=2026.11.02-a';
+import { TEMAS, diapositivaDesdeLayout, pintarDiapositiva, sanearImportado } from './slides.js?v=2026.11.02-a';
+import { descargarJSON } from './exportar.js?v=2026.11.02-a';
 
 let unsub = null;
 let cableado = false;

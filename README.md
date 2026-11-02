@@ -4,6 +4,7 @@ Página web (sin servidor propio) para crear y presentar diapositivas entre vari
 Se publica como archivos estáticos (GitHub Pages) y guarda los datos en Firebase.
 
 - **Editor visual** tipo Canva: mover, redimensionar, girar, imán de alineación, texto en el lienzo, formas, imágenes, capas.
+- **Para quien no usa HTML**: barra de formato al escribir (negrita, color, tamaño, listas…), **fórmulas LaTeX**, **tablas**, **líneas y flechas**.
 - **Editor de código**: el HTML de cada diapositiva (o de un solo elemento) se edita y se aplica con `Ctrl+Enter`.
 - **Colaboración en tiempo real**: los cambios de otras personas aparecen al instante; se ve quién está conectado, en qué diapositiva y qué elemento selecciona.
 - **Modo presentar** (`F` = pantalla completa, `N` = notas) y enlaces directos: `#presentar/<id>/4`.
@@ -75,6 +76,18 @@ En la pestaña **Código** del panel derecho:
 - **Sincronía con el lienzo**: al poner el cursor dentro de un elemento, se selecciona en el lienzo; al seleccionar un elemento en el lienzo, su código se resalta y el cursor salta a él.
 - **Aplicar al escribir**: la diapositiva se actualiza sola poco después de dejar de teclear. Todo lo aplicado así cuenta como **un solo paso** de deshacer. También puedes aplicar a mano con Ctrl+Enter.
 
+## Herramientas visuales
+
+- **Fórmulas (∑ Fórmula)**: escribe código LaTeX (`\frac{a}{b}`, `\int_0^1 x^2\,dx`, `\ce{H2O}` para química) y se dibuja al instante.
+  El panel trae una paleta de símbolos, letras griegas, matrices y ejemplos. Doble clic en la fórmula para editarla; se escala con las esquinas.
+  KaTeX viene incluido en `vendor/katex`, así que funciona sin internet y también en el HTML exportado. Por seguridad no se permiten `\href`, `\url` ni imágenes.
+- **Formato de texto**: al hacer doble clic en un texto aparece una barra sobre él con negrita, cursiva, subrayado, tachado, tamaño (de la selección),
+  color, alineación y listas.
+- **Tablas (Tabla ▾)**: elige el tamaño y escribe en las celdas. `Tab` pasa a la siguiente celda (en la última crea una fila).
+  En el panel: añadir o quitar filas y columnas junto a la celda activa, encabezado, filas alternas y colores.
+- **Líneas y flechas (Formas ▾)**: línea, flecha, flecha de doble punta y línea punteada. Se alargan con los puntos laterales, se giran con el de arriba,
+  y en el panel se cambia grosor, color, puntas y estilo. También hay rombo y hexágono.
+
 ## El código HTML de una diapositiva
 
 ```html
@@ -94,6 +107,7 @@ En la pestaña **Código** del panel derecho:
 - Se permiten estilos en línea, SVG, tablas, listas, enlaces y `https`/`data:image`. Se eliminan automáticamente
   `<script>`, `<style>`, `<iframe>`, formularios, eventos (`onclick`…) y URLs `javascript:`. Esto protege a quienes abren
   la presentación de código malicioso pegado por otra persona.
+- Elementos especiales: `data-t="formula"` con `data-tex="…"` (el LaTeX), `data-t="linea"` (línea/flecha) y `data-t="tabla"` (con un `<table>` dentro).
 - Para animaciones o scripts propios, exporta el HTML autónomo y edítalo fuera de la página.
 
 ## Atajos
@@ -107,6 +121,8 @@ En la pestaña **Código** del panel derecho:
 | Ctrl+Z / Ctrl+Y | Deshacer / rehacer (solo tus cambios) |
 | Ctrl+] / Ctrl+[ | Subir / bajar capa |
 | Mayús al mover | Bloquear eje · Alt: sin imán |
+| Tab / Mayús+Tab (en una tabla) | Celda siguiente / anterior |
+| Enter (con una fórmula seleccionada) | Editar su LaTeX |
 | Ctrl+Enter (en Código) | Aplicar el código |
 | Ctrl+F / Ctrl+H (en Código) | Buscar / reemplazar |
 | Ctrl+Espacio (en Código) | Autocompletar |
@@ -119,5 +135,12 @@ En la pestaña **Código** del panel derecho:
 - `app.js` (arranque y rutas), `lista.js`, `editor.js`, `presentar.js`, `exportar.js` — pantallas.
 - `codigo-editor.js` — el editor de código (sin dependencias). `paneles.js` — divisores y modo dividido.
 - `store.js` — acceso a datos (Firebase o modo local). `slides.js` — modelo de diapositivas. `sanitize.js` — limpieza del HTML.
+- `formula.js` (fórmulas LaTeX), `formato.js` (barra de formato de texto), `tabla.js` (operaciones de tablas), `vendor/katex/` (KaTeX 0.16, licencia MIT).
+- `version.js` — número de versión (aparece al final de la lista y en los avisos de error).
 - `firebase-config.js` — **el único archivo que debes editar** para activar Firebase.
 - `firestore.rules` — reglas de seguridad.
+
+## Si algo se ve raro después de subir cambios
+
+GitHub Pages tarda unos minutos en actualizar los archivos. Recarga con **Ctrl+Shift+R**. Al final de la lista de presentaciones aparece la
+**versión**; si la página mezcla archivos viejos y nuevos, un aviso rojo lo indica. El aviso también muestra cualquier error y tiene un botón para copiar el detalle.

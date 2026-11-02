@@ -3,13 +3,14 @@
 //   #presentaciones/<id>[/<n>]   → editor (diapositiva n)
 //   #presentar/<id>[/<n>]        → modo presentar
 
-import { S, E } from './estado.js';
-import { iniciarStore } from './store.js';
-import { opciones } from './firebase-config.js';
-import { $, aviso } from './ui.js';
-import { entrarLista, salirLista } from './lista.js';
-import { entrarEditor, salirEditor } from './editor.js';
-import { entrarPresentar, salirPresentar } from './presentar.js';
+import { S, E } from './estado.js?v=2026.11.02-a';
+import { iniciarStore } from './store.js?v=2026.11.02-a';
+import { opciones } from './firebase-config.js?v=2026.11.02-a';
+import { $, aviso, h } from './ui.js?v=2026.11.02-a';
+import { VERSION } from './version.js?v=2026.11.02-a';
+import { entrarLista, salirLista } from './lista.js?v=2026.11.02-a';
+import { entrarEditor, salirEditor } from './editor.js?v=2026.11.02-a';
+import { entrarPresentar, salirPresentar } from './presentar.js?v=2026.11.02-a';
 
 function referencias() {
   Object.assign(E, {
@@ -51,8 +52,36 @@ function enrutar() {
   else { salirEditor(); salirPresentar(); E.vistaLogin.hidden = true; entrarLista(); }
 }
 
+// ── Aviso visible de errores (para saber qué falla sin abrir la consola) ──
+let totalFallos = 0;
+function mostrarFallo(msg, detalle = '') {
+  if (/ResizeObserver loop/i.test(msg)) return;
+  totalFallos++;
+  let b = document.getElementById('fallo');
+  if (!b) { b = h('div', { id: 'fallo', class: 'fallo', role: 'alert' }); document.body.prepend(b); }
+  const texto = `Algo falló: ${msg}`;
+  const completo = `${texto}\nVersión: ${VERSION}\nNavegador: ${navigator.userAgent}\nPágina: ${location.href}\n${detalle}`;
+  b.replaceChildren(
+    h('span', { class: 'fallo-msg' }, texto + (totalFallos > 1 ? ` (+${totalFallos - 1} más)` : '')),
+    h('span', { class: 'fallo-v' }, `versión ${VERSION}`),
+    h('button', { class: 'btn', onclick: (ev) => { if (navigator.clipboard) navigator.clipboard.writeText(completo).then(() => { ev.target.textContent = 'Copiado'; }); } }, 'Copiar detalle'),
+    h('button', { class: 'btn', onclick: () => location.reload() }, 'Recargar'),
+    h('button', { class: 'btn-icono', 'aria-label': 'Cerrar', onclick: () => { b.remove(); totalFallos = 0; } }, '×'),
+  );
+}
+addEventListener('error', (ev) => mostrarFallo(ev.message || 'error desconocido', ev.error && ev.error.stack ? ev.error.stack : `${ev.filename}:${ev.lineno}`));
+addEventListener('unhandledrejection', (ev) => {
+  const r = ev.reason;
+  mostrarFallo(String((r && r.message) || r), r && r.stack ? r.stack : '');
+});
+
 async function arrancar() {
   referencias();
+  // Si el navegador mezcla archivos de versiones distintas (caché), se avisa con claridad.
+  const meta = document.querySelector('meta[name="app-version"]');
+  if (meta && meta.content !== VERSION) {
+    mostrarFallo(`el navegador tiene archivos de dos versiones (${meta.content} y ${VERSION}). Recarga con Ctrl+Shift+R.`);
+  }
   document.getElementById('lista-titulo').textContent = opciones.titulo || 'Presentaciones';
   try {
     S.store = await iniciarStore();
@@ -61,6 +90,8 @@ async function arrancar() {
     document.body.textContent = 'No se pudo iniciar la aplicación: ' + (e && e.message ? e.message : e);
     return;
   }
+  const vEl = document.getElementById('version');
+  if (vEl) vEl.textContent = `Versión ${VERSION} · ${S.store.modo === 'firebase' ? 'conectado a Firebase' : 'modo local (sin Firebase)'}`;
   if (S.store.modo === 'local') {
     let cerrado = false;
     try { cerrado = sessionStorage.getItem('pres.bannerCerrado') === '1'; } catch { /* ignorar */ }

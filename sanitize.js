@@ -7,7 +7,7 @@
 const NS_SVG = 'http://www.w3.org/2000/svg';
 const NS_HTML = 'http://www.w3.org/1999/xhtml';
 
-export const TIPOS = new Set(['texto', 'forma', 'img', 'html']);
+export const TIPOS = new Set(['texto', 'forma', 'img', 'html', 'formula', 'linea', 'tabla']);
 
 const HTML_OK = new Set(('div span p br hr h1 h2 h3 h4 h5 h6 b strong i em u s del ins mark small sub sup ' +
   'code pre blockquote ul ol li dl dt dd a img figure figcaption table thead tbody tfoot tr td th caption ' +
@@ -121,6 +121,14 @@ function limpiarAtributos(el, esRaiz, esSvg) {
     if (n.startsWith('on')) ok = false;
     else if (esRaiz && n === 'data-t') ok = TIPOS.has(v);
     else if (esRaiz && n === 'data-eid') ok = /^e[a-z0-9]{3,24}$/.test(v);
+    // Fórmulas: el código LaTeX es un dato (KaTeX lo dibuja con trust:false); no se interpreta como HTML.
+    else if (esRaiz && n === 'data-tex') ok = el.getAttribute('data-t') === 'formula' && v.length <= 2000;
+    else if (esRaiz && n === 'data-d') ok = el.getAttribute('data-t') === 'formula' && v === '1';
+    // Líneas y flechas (puntas, grosor, estilo) y tablas (filas alternas).
+    else if (esRaiz && n === 'data-puntas') ok = el.getAttribute('data-t') === 'linea' && /^[012]$/.test(v);
+    else if (esRaiz && n === 'data-g') ok = el.getAttribute('data-t') === 'linea' && /^\d{1,2}$/.test(v);
+    else if (esRaiz && n === 'data-estilo') ok = el.getAttribute('data-t') === 'linea' && /^(solid|dashed|dotted)$/.test(v);
+    else if (esRaiz && n === 'data-cebra') ok = el.getAttribute('data-t') === 'tabla' && v === '1';
     else if (ATTR_GLOBAL.has(n)) ok = valorGlobalSeguro(n, v);
     else if (esSvg && ATTR_SVG.has(n)) ok = valorSvgSeguro(n, v);
     else if (tag === 'img' && n === 'src') ok = urlImagenSegura(v);

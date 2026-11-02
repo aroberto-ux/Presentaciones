@@ -4,7 +4,8 @@
 //   { orden, bg: 'css del fondo', notas: '', el: { <id>: { z: 1, h: '<div …>…</div>' } } }
 // Cada elemento es un trozo de HTML con posición absoluta sobre un lienzo de 1280×720.
 
-import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo, dividirDecls } from './sanitize.js';
+import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo, dividirDecls } from './sanitize.js?v=2026.11.02-a';
+import { pintarFormula } from './formula.js?v=2026.11.02-a';
 
 export const ANCHO = 1280;
 export const ALTO = 720;
@@ -47,6 +48,8 @@ const FORMAS = {
   estrella: 'clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)',
   flecha: 'clip-path:polygon(0 35%,65% 35%,65% 10%,100% 50%,65% 90%,65% 65%,0 65%)',
   linea: 'border-radius:4px',
+  rombo: 'clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)',
+  hexagono: 'clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)',
 };
 
 export function htmlForma(tipo, x, y, w, h, color, extra = '') {
@@ -66,9 +69,67 @@ export function htmlBloque(x, y) {
     `<h3 style="margin:0 0 8px">Bloque HTML</h3><p style="margin:0">Edita su código en la pestaña «Código».</p></div>`;
 }
 
+/** Color de texto legible (oscuro o claro) sobre un fondo dado en hexadecimal. */
+export function contraste(hex) {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#ffffff';
+  const n = parseInt(m[1], 16);
+  const l = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+  return l > 150 ? '#14181d' : '#ffffff';
+}
+
+/** Interior de una línea o flecha: se rehace cuando cambian las puntas, el grosor o el estilo. */
+export function interiorLinea(puntas, g, estilo) {
+  const hw = Math.max(14, Math.round(g * 3.5)), hh = Math.max(10, Math.round(g * 2.2));
+  const punta = (borde) => `<div style="flex:none;width:0;height:0;border-top:${hh}px solid transparent;` +
+    `border-bottom:${hh}px solid transparent;border-${borde}:${hw}px solid currentColor"></div>`;
+  const cuerpo = estilo === 'solid'
+    ? `<div style="flex:1;min-width:0;height:${g}px;background:currentColor;border-radius:${g / 2}px"></div>`
+    : `<div style="flex:1;min-width:0;height:0;border-top:${g}px ${estilo} currentColor"></div>`;
+  return (puntas === 2 ? punta('right') : '') + cuerpo + (puntas >= 1 ? punta('left') : '');
+}
+
+/** Línea o flecha (0 = sin puntas, 1 = al final, 2 = en ambos extremos). Se gira con el asa superior. */
+export function htmlLinea(x, y, w, color, { puntas = 1, g = 6, estilo = 'solid' } = {}) {
+  const hh = Math.max(10, Math.round(g * 2.2));
+  return `<div data-t="linea" data-puntas="${puntas}" data-g="${g}" data-estilo="${estilo}" style="position:absolute;` +
+    `left:${x}px;top:${y}px;width:${w}px;height:${hh * 2}px;display:flex;align-items:center;color:${color}">` +
+    `${interiorLinea(puntas, g, estilo)}</div>`;
+}
+
+/** Tabla editable: la primera fila es el encabezado. */
+export function htmlTabla(filas, cols, t = TEMAS.claro, x = 120, y = 200) {
+  const w = Math.min(1040, Math.max(480, cols * 220));
+  const ac = /^#[0-9a-f]{6}$/i.test(t.ac) ? t.ac : '#1f7a4d';
+  let trs = '';
+  for (let i = 0; i < filas; i++) {
+    let celdas = '';
+    for (let j = 0; j < cols; j++) celdas += i === 0 ? `<th>Encabezado ${j + 1}</th>` : '<td>Dato</td>';
+    trs += `<tr>${celdas}</tr>`;
+  }
+  return `<div data-t="tabla" style="position:absolute;left:${x}px;top:${y}px;width:${w}px;font-size:26px;color:${t.fg};` +
+    `--tb-enc:${ac};--tb-encfg:${contraste(ac)}"><table style="width:100%"><tbody>${trs}</tbody></table></div>`;
+}
+
+/** Fórmula LaTeX: solo se guarda el código; KaTeX la dibuja al mostrarla. */
+export function htmlFormula(x, y, tex, { size = 64, color = '#1c1f23', display = false } = {}) {
+  const t = String(tex).replace(/"/g, '&quot;');
+  return `<div data-t="formula" data-tex="${t}"${display ? ' data-d="1"' : ''} style="position:absolute;left:${x}px;top:${y}px;` +
+    `font-size:${size}px;color:${color}"></div>`;
+}
+
 /** Elementos que se insertan desde la barra. */
 export function elementoNuevo(tipo, t = TEMAS.claro) {
+  const tb = /^tabla:(\d+)x(\d+)$/.exec(tipo);
+  if (tb) return htmlTabla(Math.min(30, +tb[1]), Math.min(12, +tb[2]), t);
   switch (tipo) {
+    case 'linea-recta': return htmlLinea(380, 340, 520, t.ac, { puntas: 0 });
+    case 'flecha-linea': return htmlLinea(380, 340, 520, t.ac, { puntas: 1 });
+    case 'flecha-doble': return htmlLinea(380, 340, 520, t.ac, { puntas: 2 });
+    case 'linea-punteada': return htmlLinea(380, 340, 520, t.ac, { puntas: 0, estilo: 'dashed' });
+    case 'rombo': return htmlForma('rombo', 520, 240, 260, 240, t.ac);
+    case 'hexagono': return htmlForma('hexagono', 500, 240, 280, 240, t.ac);
+    case 'formula': return htmlFormula(420, 280, 'E = mc^{2}', { color: t.fg });
     case 'titulo': return htmlTexto(120, 90, 1040, 'Título', { size: 64, weight: 700, color: t.fg, font: t.titulo, lh: 1.15 });
     case 'subtitulo': return htmlTexto(120, 200, 1040, 'Subtítulo', { size: 36, weight: 500, color: t.fg, font: t.fuente });
     case 'cuerpo': return htmlTexto(120, 300, 760, 'Escribe aquí tu texto', { size: 28, color: t.fg, font: t.fuente });
@@ -155,6 +216,7 @@ const ID_OK = /^e[a-z0-9]{3,24}$/;
 export function htmlDeNodo(nodo) {
   const c = nodo.cloneNode(true);
   for (const a of ['data-eid', 'contenteditable', 'spellcheck', 'data-sel']) c.removeAttribute(a);
+  if (c.getAttribute('data-t') === 'formula') c.replaceChildren(); // lo dibujado por KaTeX nunca se guarda
   c.style.zIndex = '';
   if (!c.getAttribute('style')) c.removeAttribute('style');
   const limpio = limpiarRaiz(c, { quitados: 0 });
@@ -186,6 +248,7 @@ export function construirNodo(h, id, z) {
   n.style.position = 'absolute';
   n.style.zIndex = String(z);
   n.__h = h;
+  if (n.getAttribute('data-t') === 'formula') pintarFormula(n);
   return n;
 }
 

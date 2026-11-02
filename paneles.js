@@ -1,15 +1,15 @@
 // Paneles del editor: divisores arrastrables, plegado y «modo código»
 // (código a la izquierda, diapositiva en vivo a la derecha, como en Overleaf).
 
-import { E } from './estado.js';
+import { E } from './estado.js?v=2026.11.02-a';
 
 const CLAVE = 'pres.ui.v1';
-const MIN_DIAP = 140, MAX_DIAP = 420, DEF_DIAP = 220;
-const MIN_DER = 260, DEF_DER = 304, DEF_TAB = 420;
+const MIN_DIAP = 120, MAX_DIAP = 420, DEF_DIAP = 176;
+const MIN_DER = 260, DEF_DER = 296, DEF_TAB = 420;
 const MIN_CENTRO = 300;
 const DIV = 8; // ancho de cada divisor
 
-const ui = { wDiap: DEF_DIAP, wDer: DEF_DER, wTab: DEF_TAB, wCod: 0, colDiap: false, colDer: false, modo: false };
+const ui = { wDiap: DEF_DIAP, wDer: DEF_DER, wTab: DEF_TAB, wCod: 0, colDiap: null, colDer: false, modo: false };
 let pestCodigo = false; // la pestaña «Código» está activa (usa su propio ancho)
 let cableado = false;
 let alCambiar = () => {};
@@ -54,12 +54,25 @@ function maxDer() {
 /** Pinta el estado actual en el DOM. */
 export function aplicar() {
   if (!E.cuerpo) return;
+  // Sin preferencia guardada: en pantallas estrechas la lista de diapositivas empieza plegada
+  // para darle todo el espacio posible a la diapositiva.
+  if (ui.colDiap === null) ui.colDiap = window.innerWidth < 1200;
   const modo = modoCodigo();
   const wDer = anchoDerActual();
   E.cuerpo.classList.toggle('modo-codigo', modo);
   E.cuerpo.classList.toggle('col-diap', ui.colDiap);
   E.cuerpo.classList.toggle('col-der', ui.colDer);
   E.cuerpo.style.setProperty('--w-diap', (ui.colDiap ? 0 : ui.wDiap) + 'px');
+  // Las miniaturas se adaptan al ancho de la lista (en móvil usan su tamaño fijo).
+  const pd = document.getElementById('panel-diap');
+  if (pd) {
+    if (esMovil()) { pd.style.removeProperty('--tw'); pd.style.removeProperty('--ms'); }
+    else {
+      const tw = limitar(ui.wDiap - 50, 70, 360);
+      pd.style.setProperty('--tw', tw + 'px');
+      pd.style.setProperty('--ms', String(tw / 1280));
+    }
+  }
   E.cuerpo.style.setProperty('--w-der', (ui.colDer ? 0 : limitar(wDer, MIN_DER, maxDer())) + 'px');
   // Flechas de los divisores: indican hacia dónde se pliega / despliega el panel.
   E.chevDiap.textContent = ui.colDiap ? '›' : '‹';

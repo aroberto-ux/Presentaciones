@@ -1,8 +1,8 @@
 // Modo presentar: pantalla completa, solo lectura, actualizado en vivo.
 
-import { S, E } from './estado.js';
-import { pintarDiapositiva } from './slides.js';
-import { aviso } from './ui.js';
+import { S, E } from './estado.js?v=2026.11.02-a';
+import { pintarDiapositiva } from './slides.js?v=2026.11.02-a';
+import { aviso } from './ui.js?v=2026.11.02-a';
 
 let activo = false;
 let cableado = false;

@@ -28,3 +28,10 @@
 .diap pre { margin: 0; white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; }
 .diap [data-t="texto"] { overflow-wrap: break-word; }
 .diap blockquote { margin: 0; padding-left: 1em; border-left: 4px solid currentColor; }
+.diap [data-t="formula"] { white-space: nowrap; line-height: 1.25; }
+.diap [data-t="formula"] .katex-display { margin: 0; }
+.diap [data-t="linea"] { box-sizing: border-box; }
+.diap [data-t="tabla"] table { width: 100%; table-layout: fixed; }
+.diap [data-t="tabla"] th, .diap [data-t="tabla"] td { border-color: var(--tb-linea, currentColor); overflow-wrap: anywhere; vertical-align: top; text-align: left; }
+.diap [data-t="tabla"] th { background: var(--tb-enc, #1f7a4d); color: var(--tb-encfg, #fff); font-weight: 700; }
+.diap [data-t="tabla"][data-cebra="1"] tr:nth-child(even) td { background: rgba(127, 127, 127, .14); }

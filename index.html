@@ -4,12 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Presentaciones</title>
+  <meta name="app-version" content="2026.11.02-a">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@400;700&family=Lora:wght@400;600&family=Roboto+Slab:wght@400;700&family=Space+Grotesk:wght@400;600;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="slide.css">
-  <link rel="stylesheet" href="styles.css">
-  <script type="module" src="app.js"></script>
+  <link rel="stylesheet" href="vendor/katex/katex.min.css?v=2026.11.02-a">
+  <link rel="stylesheet" href="slide.css?v=2026.11.02-a">
+  <link rel="stylesheet" href="styles.css?v=2026.11.02-a">
+  <script defer src="vendor/katex/katex.min.js?v=2026.11.02-a"></script>
+  <script defer src="vendor/katex/mhchem.min.js?v=2026.11.02-a"></script>
+  <script type="module" src="app.js?v=2026.11.02-a"></script>
 </head>
 <body>
 
@@ -39,6 +43,7 @@
   <p id="lista-vacia" class="vacio" hidden>Todavía no hay presentaciones. Crea la primera con «Nueva presentación».</p>
   <section id="rejilla" class="rejilla" aria-live="polite"></section>
   <input type="file" id="input-importar" accept="application/json,.json" hidden>
+  <p class="version" id="version" title="Versión de la página (útil si algo falla)"></p>
 </main>
 
 <!-- Editor -->
@@ -59,8 +64,11 @@
 
   <div class="ed-cuerpo" id="ed-cuerpo">
     <aside id="panel-diap" class="panel-diap" aria-label="Diapositivas">
+      <div class="panel-cab">
+        <span>Diapositivas</span>
+        <button class="btn-icono" id="btn-nueva-diap" title="Nueva diapositiva" aria-label="Nueva diapositiva">＋</button>
+      </div>
       <div id="lista-diap" class="lista-diap"></div>
-      <button class="btn nueva-diap" id="btn-nueva-diap">＋ Diapositiva</button>
     </aside>
 
     <div id="divisor-diap" class="divisor" role="separator" aria-orientation="vertical" tabindex="0"
@@ -69,11 +77,25 @@
     </div>
 
     <section id="centro" class="centro">
-      <div id="barra-ins" class="barra-ins" role="toolbar" aria-label="Insertar">
-        <button class="btn" id="ins-texto">Texto ▾</button>
-        <button class="btn" id="ins-forma">Formas ▾</button>
-        <button class="btn" id="ins-imagen">Imagen ▾</button>
-        <button class="btn" id="ins-html">‹/› Bloque HTML</button>
+      <div id="barra-ins" class="barra-ins" role="toolbar" aria-label="Insertar y zoom">
+        <div class="ins-grupo">
+          <button class="btn" id="ins-texto">Texto ▾</button>
+          <button class="btn" id="ins-forma">Formas ▾</button>
+          <button class="btn" id="ins-imagen">Imagen ▾</button>
+          <button class="btn" id="ins-tabla">Tabla ▾</button>
+          <button class="btn" id="ins-formula" title="Insertar una fórmula escrita en LaTeX">∑ Fórmula</button>
+          <button class="btn" id="ins-html">‹/› HTML</button>
+        </div>
+        <span class="espacio"></span>
+        <span id="info-diap" class="info-diap"></span>
+        <label class="zoom">Zoom
+          <select id="zoom" aria-label="Zoom">
+            <option value="ajustar">Ajustar</option>
+            <option value="0.5">50 %</option>
+            <option value="0.75">75 %</option>
+            <option value="1">100 %</option>
+          </select>
+        </label>
       </div>
 
       <div id="lienzo" class="lienzo">
@@ -90,19 +112,6 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="barra-inf">
-        <span id="info-diap"></span>
-        <span class="espacio"></span>
-        <label class="zoom">Zoom
-          <select id="zoom" aria-label="Zoom">
-            <option value="ajustar">Ajustar</option>
-            <option value="0.5">50 %</option>
-            <option value="0.75">75 %</option>
-            <option value="1">100 %</option>
-          </select>
-        </label>
       </div>
     </section>
 

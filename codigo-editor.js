@@ -238,6 +238,17 @@ export function crearEditorCodigo(raiz, opciones = {}) {
   function contarLineas(s) { let n = 1; for (let i = s.indexOf('\n'); i >= 0; i = s.indexOf('\n', i + 1)) n++; return n; }
 
   function render() {
+    try {
+      pintarTodo();
+      raiz.classList.remove('ce-plano');
+    } catch (err) {
+      // Si algo falla al colorear, el texto sigue siendo editable: se muestra tal cual.
+      console.error('Editor de código: error al resaltar', err);
+      raiz.classList.add('ce-plano');
+    }
+  }
+
+  function pintarTodo() {
     const src = ta.value;
     const lineas = src.length > 300000
       ? src.split('\n').map((l) => `<div class="ln">${esc(l) || '​'}</div>`)
@@ -713,5 +724,72 @@ export function crearEditorCodigo(raiz, opciones = {}) {
       document.removeEventListener('selectionchange', alSel);
       if (obs) obs.disconnect();
     },
+  };
+}
+
+/**
+ * Editor de respaldo: un simple cuadro de texto con la misma interfaz.
+ * Se usa si el editor avanzado no puede iniciarse en este navegador.
+ */
+export function crearEditorPlano(raiz, opciones = {}) {
+  const o = { alCambiar() {}, alAplicar() {}, alCursor() {}, alPerderFoco() {}, tam: 13, ajuste: true, ...opciones };
+  raiz.classList.add('ce', 'ce-basico');
+  raiz.replaceChildren();
+  const ta = document.createElement('textarea');
+  ta.className = 'ce-basico-ta';
+  ta.spellcheck = false;
+  ta.setAttribute('aria-label', 'Código HTML');
+  raiz.append(ta);
+  let tam = o.tam, ajuste = !!o.ajuste;
+  const pintar = () => { ta.style.fontSize = tam + 'px'; ta.wrap = ajuste ? 'soft' : 'off'; ta.style.whiteSpace = ajuste ? 'pre-wrap' : 'pre'; };
+  pintar();
+  const info = () => {
+    const v = ta.value, pos = ta.selectionStart;
+    let linea = 0;
+    for (let i = v.indexOf('\n'); i >= 0 && i < pos; i = v.indexOf('\n', i + 1)) linea++;
+    const ini = v.lastIndexOf('\n', pos - 1) + 1;
+    return { linea, col: pos - Math.min(ini, pos) + 1, pos, total: (v.match(/\n/g) || []).length + 1 };
+  };
+  ta.addEventListener('input', () => o.alCambiar());
+  ta.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); o.alAplicar(); }
+    else if (e.key === 'Tab' && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      if (!document.execCommand('insertText', false, '  ')) { ta.setRangeText('  ', ta.selectionStart, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input')); }
+    }
+  });
+  ta.addEventListener('blur', () => o.alPerderFoco());
+  const cur = () => o.alCursor(info(), document.activeElement === ta);
+  ['keyup', 'mouseup', 'focus'].forEach((ev) => ta.addEventListener(ev, cur));
+  return {
+    textarea: ta,
+    getValor: () => ta.value,
+    setValor(v) {
+      if (ta.value === v) return;
+      const st = ta.scrollTop, a = ta.selectionStart, b = ta.selectionEnd;
+      ta.value = v;
+      ta.setSelectionRange(Math.min(a, v.length), Math.min(b, v.length));
+      ta.scrollTop = st;
+    },
+    setDeshabilitado(d, ph = '') { ta.disabled = !!d; ta.placeholder = ph; },
+    tieneFoco: () => document.activeElement === ta,
+    enfocar: () => ta.focus(),
+    cursor: info,
+    irALinea(n) {
+      const v = ta.value;
+      let pos = 0;
+      for (let k = 0; k < n; k++) { const i = v.indexOf('\n', pos); if (i < 0) break; pos = i + 1; }
+      ta.setSelectionRange(pos, pos);
+      const lh = parseFloat(getComputedStyle(ta).lineHeight) || 20;
+      ta.scrollTop = Math.max(0, n * lh - ta.clientHeight / 2);
+    },
+    resaltarRango() {},
+    setTam(px) { tam = Math.max(10, Math.min(24, px)); pintar(); return tam; },
+    getTam: () => tam,
+    setAjuste(b) { ajuste = !!b; pintar(); return ajuste; },
+    getAjuste: () => ajuste,
+    abrirBuscar() {},
+    refrescar() {},
+    destruir() {},
   };
 }
