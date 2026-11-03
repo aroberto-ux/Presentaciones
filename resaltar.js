@@ -3,7 +3,7 @@
 // En la diapositiva solo se guarda el texto del código (dentro de un <pre>) y unos pocos atributos
 // (lenguaje, tema…). El HTML coloreado se genera al mostrar el elemento y nunca se guarda.
 
-import { tokenizar as tokenizarHtml } from './codigo-editor.js?v=2026.11.02-b';
+import { tokenizar as tokenizarHtml } from './codigo-editor.js?v=2026.11.03-a';
 
 export const LENGUAJES = [
   ['python', 'Python'], ['javascript', 'JavaScript'], ['java', 'Java'], ['c', 'C'], ['cpp', 'C++'],

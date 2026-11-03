@@ -4,9 +4,9 @@
 //   { orden, bg: 'css del fondo', notas: '', el: { <id>: { z: 1, h: '<div …>…</div>' } } }
 // Cada elemento es un trozo de HTML con posición absoluta sobre un lienzo de 1280×720.
 
-import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo, dividirDecls, analizarCss, cssATexto, cssBonito, limpiarCss, nsDeCss } from './sanitize.js?v=2026.11.02-b';
-import { pintarFormula } from './formula.js?v=2026.11.02-b';
-import { pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.02-b';
+import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo, dividirDecls, analizarCss, cssATexto, cssBonito, limpiarCss, nsDeCss } from './sanitize.js?v=2026.11.03-a';
+import { pintarFormula } from './formula.js?v=2026.11.03-a';
+import { pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.03-a';
 
 export const ANCHO = 1280;
 export const ALTO = 720;
@@ -33,7 +33,37 @@ export const TEMAS = {
     nombre: 'Cálido', bg: '#fbf6ee', fg: '#2b2118', ac: '#c2410c', suave: '#f1e4cf',
     fuente: "'Lora',Georgia,serif", titulo: "'Playfair Display',Georgia,serif",
   },
+  azul: { nombre: 'Azul corporativo', bg: '#f5f8fc', fg: '#12263f', ac: '#2563eb', suave: '#dbe7f7', fuente: SANS, titulo: "'Montserrat',system-ui,sans-serif" },
+  pizarra: { nombre: 'Pizarra', bg: '#1f2a2e', fg: '#eef2ef', ac: '#f2c94c', suave: '#2d3b40', fuente: SANS, titulo: "'Space Grotesk',system-ui,sans-serif" },
+  academico: {
+    nombre: 'Académico', bg: '#ffffff', fg: '#1a1a1a', ac: '#7a1f2b', suave: '#f3e9ea',
+    fuente: "'Lora',Georgia,serif", titulo: "'Playfair Display',Georgia,serif",
+  },
+  violeta: {
+    nombre: 'Violeta', bg: 'linear-gradient(135deg,#2e1065,#6d28d9)', fg: '#ffffff', ac: '#fbbf24',
+    suave: 'rgba(255,255,255,.14)', fuente: SANS, titulo: "'Poppins',system-ui,sans-serif",
+  },
+  minimal: { nombre: 'Minimalista', bg: '#fafafa', fg: '#111111', ac: '#111111', suave: '#ececec', fuente: SANS, titulo: SANS },
+  contraste: { nombre: 'Alto contraste', bg: '#000000', fg: '#ffffff', ac: '#ffd400', suave: '#1a1a1a', fuente: 'Arial,Helvetica,sans-serif', titulo: 'Arial,Helvetica,sans-serif' },
 };
+
+const COLOR_TEMA = /^(#[0-9a-f]{6}|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\))$/i;
+
+/** Paleta personalizada guardada en la presentación: solo valores conocidos y seguros (o null). */
+export function paletaSegura(p) {
+  if (!p || typeof p !== 'object') return null;
+  const color = (v) => typeof v === 'string' && COLOR_TEMA.test(v.trim());
+  const fuente = (v) => typeof v === 'string' && v.length <= 120 && /^[\w ,'"-]+$/.test(v) && !!declaracionSegura('font-family:' + v);
+  const bg = typeof p.bg === 'string' && p.bg.length <= 200 && !!declaracionSegura('background:' + p.bg);
+  if (!bg || !color(p.fg) || !color(p.ac) || !color(p.suave) || !fuente(p.fuente) || !fuente(p.titulo)) return null;
+  return { nombre: 'Personalizado', bg: p.bg, fg: p.fg.trim(), ac: p.ac.trim(), suave: p.suave.trim(), fuente: p.fuente, titulo: p.titulo };
+}
+
+/** Tema vigente de una presentación (uno de la lista o el personalizado). */
+export function temaDePres(pres) {
+  if (pres && pres.tema === 'personalizado') { const pp = paletaSegura(pres.paleta); if (pp) return pp; }
+  return TEMAS[pres && pres.tema] || TEMAS.claro;
+}
 
 export function htmlTexto(x, y, w, contenido, o = {}) {
   const { size = 28, weight = 400, color = '#1c1f23', align = 'left', font, lh = 1.3, extra = '' } = o;
@@ -172,6 +202,11 @@ export const LAYOUTS = [
   { id: 'dos-columnas', nombre: 'Dos columnas' },
   { id: 'imagen-texto', nombre: 'Imagen y texto' },
   { id: 'seccion', nombre: 'Sección' },
+  { id: 'comparacion', nombre: 'Comparación (A / B)' },
+  { id: 'pasos', nombre: 'Pasos 1 · 2 · 3' },
+  { id: 'tarjetas', nombre: 'Tres tarjetas' },
+  { id: 'codigo', nombre: 'Código y explicación' },
+  { id: 'formula', nombre: 'Fórmula destacada' },
   { id: 'blanco', nombre: 'En blanco' },
 ];
 
@@ -210,6 +245,56 @@ function construirLayout(id, t) {
       return { bg: t.suave.startsWith('rgba') ? t.bg : t.suave, els: [
         htmlTexto(96, 250, 1088, '01', { size: 120, weight: 800, color: t.ac, font: t.titulo, lh: 1 }),
         tit(96, 400, 1088, 'Nombre de la sección', 60),
+      ] };
+    case 'comparacion': {
+      const tarjeta = (x, titulo, items) => [
+        htmlForma('rect', x, 180, 540, 450, t.suave, 'border-radius:16px'),
+        htmlForma('rect', x, 180, 540, 10, t.ac, 'border-radius:16px 16px 0 0'),
+        htmlTexto(x + 32, 214, 476, titulo, { size: 38, weight: 700, color: t.ac, font: t.titulo, lh: 1.15 }),
+        cuerpo(x + 32, 284, 476, `<ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul>`, 28),
+      ];
+      return { bg: t.bg, els: [
+        tit(80, 56, 1120, 'Comparación'),
+        ...tarjeta(80, 'Opción A', ['Ventaja principal', 'Segunda característica', 'Costo o limitación']),
+        ...tarjeta(660, 'Opción B', ['Ventaja principal', 'Segunda característica', 'Costo o limitación']),
+      ] };
+    }
+    case 'pasos': {
+      const els = [tit(80, 56, 1120, 'Pasos del proceso')];
+      for (let i = 0; i < 3; i++) {
+        const x0 = 100 + i * 390;
+        els.push(htmlForma('circulo', x0, 190, 92, 92, t.ac, `color:${contraste(/^#[0-9a-f]{6}$/i.test(t.ac) ? t.ac : '#1f7a4d')};font-size:44px;font-weight:700;font-family:${t.titulo}`)
+          .replace('></div>', `>${i + 1}</div>`));
+        if (i < 2) els.push(htmlLinea(x0 + 116, 224, 250, t.ac, { puntas: 1, g: 5, estilo: 'dashed' }));
+        els.push(htmlTexto(x0, 316, 340, `Paso ${i + 1}`, { size: 36, weight: 700, color: t.fg, font: t.titulo, lh: 1.15 }));
+        els.push(cuerpo(x0, 376, 340, 'Describe aquí en qué consiste este paso.', 28));
+      }
+      return { bg: t.bg, els };
+    }
+    case 'tarjetas': {
+      const els = [tit(80, 56, 1120, 'Tres ideas clave')];
+      for (let i = 0; i < 3; i++) {
+        const x = 80 + i * 384;
+        els.push(htmlForma('rect', x, 190, 352, 420, t.suave, 'border-radius:16px'));
+        els.push(htmlForma('rect', x + 28, 224, 64, 8, t.ac, 'border-radius:4px'));
+        els.push(htmlTexto(x + 28, 256, 296, `Idea ${i + 1}`, { size: 36, weight: 700, color: t.fg, font: t.titulo, lh: 1.15 }));
+        els.push(cuerpo(x + 28, 326, 296, 'Explica esta idea en una o dos frases.', 27));
+      }
+      return { bg: t.bg, els };
+    }
+    case 'codigo':
+      return { bg: t.bg, els: [
+        tit(80, 56, 1120, 'Ejemplo de código'),
+        barra(80, 140),
+        htmlCodigo(80, 180, CODIGO_EJEMPLO, { w: 700 }),
+        cuerpo(820, 190, 380, '<b>Qué hace</b><br>Explica aquí las partes importantes del código.', 28),
+      ] };
+    case 'formula':
+      return { bg: t.bg, els: [
+        tit(80, 56, 1120, 'Una fórmula importante'),
+        barra(80, 140),
+        htmlFormula(80, 230, '\\int_0^1 x^2\\,dx = \\frac{1}{3}', { size: 80, color: t.fg }),
+        cuerpo(80, 470, 1120, 'Explica qué significa cada símbolo y cuándo se usa.', 30),
       ] };
     default:
       return { bg: t.bg, els: [] };
@@ -576,7 +661,8 @@ ${secciones}
 export function sanearImportado(obj) {
   if (!obj || typeof obj !== 'object' || !Array.isArray(obj.diapositivas)) throw new Error('El archivo no parece una presentación.');
   const titulo = String(obj.titulo || 'Presentación importada').slice(0, 120);
-  const tema = TEMAS[obj.tema] ? obj.tema : 'claro';
+  const paleta = obj.tema === 'personalizado' ? paletaSegura(obj.paleta) : null;
+  const tema = TEMAS[obj.tema] ? obj.tema : paleta ? 'personalizado' : 'claro';
   const diapositivas = obj.diapositivas.slice(0, 300).map((s) => {
     const el = {};
     const entradas = Array.isArray(s.el) ? s.el : Object.values(s.el || {});
@@ -588,5 +674,5 @@ export function sanearImportado(obj) {
     return { bg, notas: String(s.notas || '').slice(0, 5000), el };
   });
   if (!diapositivas.length) throw new Error('La presentación no tiene diapositivas.');
-  return { titulo, tema, diapositivas };
+  return { titulo, tema, ...(tema === 'personalizado' ? { paleta } : {}), diapositivas };
 }

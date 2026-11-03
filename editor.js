@@ -1,22 +1,25 @@
 // Editor: lienzo visual tipo Canva + editor de código + colaboración en vivo.
 
-import { S, E } from './estado.js?v=2026.11.02-b';
-import { h, $, $$, aviso, modal, pedir, confirmar, abrirMenu, cerrarMenu, hayModal, copiarTexto, iniciales } from './ui.js?v=2026.11.02-b';
+import { S, E } from './estado.js?v=2026.11.03-a';
+import { h, $, $$, aviso, modal, pedir, confirmar, abrirMenu, cerrarMenu, hayModal, copiarTexto, iniciales } from './ui.js?v=2026.11.03-a';
 import {
   ANCHO, ALTO, LIMITE_BYTES, TEMAS, LAYOUTS, r1, nuevoId, elementoNuevo, htmlImagen, htmlTexto,
   diapositivaDesdeLayout, reconciliar, pintarDiapositiva, aplicarFondo, htmlDeNodo, limpiarHtmlElemento,
   leerCaja, fijarRotacion, idsOrdenados, serializarCodigo, serializarElemento, parsearCodigo, parsearElemento,
-  pesoDiapositiva, esEstilo,
-} from './slides.js?v=2026.11.02-b';
-import { nodoDesdeHTML } from './sanitize.js?v=2026.11.02-b';
-import { descargarHTML, descargarJSON, imprimir } from './exportar.js?v=2026.11.02-b';
-import { crearEditorCodigo, crearEditorPlano } from './codigo-editor.js?v=2026.11.02-b';
-import { pintarFormula, errorTex, texAHtml, EJEMPLOS, PALETA } from './formula.js?v=2026.11.02-b';
-import { interiorLinea, contraste } from './slides.js?v=2026.11.02-b';
-import { crearBarraTexto } from './formato.js?v=2026.11.02-b';
-import { LENGUAJES, TEMAS_CODIGO, pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.02-b';
-import { agregarFila, quitarFila, agregarColumna, quitarColumna, alternarEncabezado, tieneEncabezado, celdaVecina } from './tabla.js?v=2026.11.02-b';
-import { iniciarPaneles, alternarModoCodigo, pestanaActiva, aplicar as aplicarPaneles } from './paneles.js?v=2026.11.02-b';
+  pesoDiapositiva, esEstilo, temaDePres, paletaSegura,
+} from './slides.js?v=2026.11.03-a';
+import { retemarDiapositiva, escalarTextoHtml } from './temas.js?v=2026.11.03-a';
+import { abrirImportador } from './importar.js?v=2026.11.03-a';
+import { abrirPromptIA } from './prompt-ia.js?v=2026.11.03-a';
+import { nodoDesdeHTML } from './sanitize.js?v=2026.11.03-a';
+import { descargarHTML, descargarJSON, imprimir } from './exportar.js?v=2026.11.03-a';
+import { crearEditorCodigo, crearEditorPlano } from './codigo-editor.js?v=2026.11.03-a';
+import { pintarFormula, errorTex, texAHtml, EJEMPLOS, PALETA } from './formula.js?v=2026.11.03-a';
+import { interiorLinea, contraste } from './slides.js?v=2026.11.03-a';
+import { crearBarraTexto } from './formato.js?v=2026.11.03-a';
+import { LENGUAJES, TEMAS_CODIGO, pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.03-a';
+import { agregarFila, quitarFila, agregarColumna, quitarColumna, alternarEncabezado, tieneEncabezado, celdaVecina } from './tabla.js?v=2026.11.03-a';
+import { iniciarPaneles, alternarModoCodigo, pestanaActiva, aplicar as aplicarPaneles } from './paneles.js?v=2026.11.03-a';
 
 let enEditor = false;
 let cableado = false;
@@ -49,7 +52,7 @@ const slideActual = () => S.slides.find((s) => s.id === S.sid) || null;
 const slidePorId = (id) => S.slides.find((s) => s.id === id) || null;
 const nodoPorId = (id) => (id ? Array.from(E.stage.children).find((c) => c.dataset && c.dataset.eid === id) || null : null);
 const nodoSel = () => nodoPorId(S.sel);
-const tema = () => TEMAS[S.pres && S.pres.tema] || TEMAS.claro;
+const tema = () => temaDePres(S.pres);
 const copiaEl = (id) => {
   const sl = slideActual();
   const e = sl && sl.el && sl.el[id];
@@ -328,6 +331,24 @@ async function nuevaDiapositiva(layoutId, tras = S.sid) {
   if (!r) { irAPend = null; aviso('No se pudo crear la diapositiva.', 'error'); }
 }
 
+/** Crea varias diapositivas seguidas después de la actual (importación de guiones o de HTML). */
+async function crearVarias(datos, ignoradas = 0) {
+  if (!datos.length) return;
+  const ref = slidePorId(S.sid);
+  const prev = ref ? ref.orden : (S.slides[S.slides.length - 1] ? S.slides[S.slides.length - 1].orden : 0);
+  const sig = ref ? (S.slides.find((s) => s.orden > prev) || null) : null;
+  const tope = sig ? sig.orden : prev + datos.length + 1;
+  let primero = null;
+  for (let i = 0; i < datos.length; i++) {
+    const id = 's' + nuevoId().slice(1);
+    if (!primero) { primero = id; irAPend = id; }
+    const orden = prev + ((tope - prev) * (i + 1)) / (datos.length + 1);
+    const r = await S.store.crearDiapositiva(S.pid, { ...datos[i], orden }, id);
+    if (!r) { aviso('No se pudieron crear todas las diapositivas.', 'error'); return; }
+  }
+  aviso(`${datos.length} diapositiva${datos.length === 1 ? '' : 's'} creada${datos.length === 1 ? '' : 's'}${ignoradas ? `; se omitieron ${ignoradas} imagen(es) sin dirección https` : ''}.`, 'ok', 4500);
+}
+
 async function duplicarDiap(sid) {
   const s = slidePorId(sid);
   if (!s) return;
@@ -431,6 +452,17 @@ function actualizarBotonesUndo() {
 }
 
 function revertir(op, atras) {
+  if (op.grupo) { // cambio que toca varias diapositivas (tema, tamaño del texto)
+    for (const g of atras ? op.grupo.slice().reverse() : op.grupo) {
+      if (!slidePorId(g.sid)) continue;
+      const cambios = g.cambios.map((c) => (atras ? { id: c.id, antes: c.despues, despues: c.antes } : c));
+      const bg = g.bg ? (atras ? { antes: g.bg.despues, despues: g.bg.antes } : g.bg) : null;
+      aplicarCambios(g.sid, cambios, bg, { registrar: false });
+    }
+    if (op.pres) guardarTemaPres(atras ? op.pres.antes : op.pres.despues);
+    refrescarTrasCambio();
+    return;
+  }
   if (op.sid !== S.sid) { if (!slidePorId(op.sid)) return; irADiapositiva(op.sid); }
   const cambios = op.cambios.map((c) => (atras ? { id: c.id, antes: c.despues, despues: c.antes } : c));
   const bg = op.bg ? (atras ? { antes: op.bg.despues, despues: op.bg.antes } : op.bg) : null;
@@ -1553,6 +1585,107 @@ function cambiarFondo(valor, { registrar = true } = {}) {
   aplicarCambios(sl.id, [], { antes, despues: valor }, { registrar });
 }
 
+/** Guarda el tema (y la paleta personalizada) en la presentación. */
+function guardarTemaPres(t) {
+  if (S.pres) { S.pres.tema = t.tema; if (t.paleta) S.pres.paleta = t.paleta; else delete S.pres.paleta; }
+  S.store.actualizarPresentacion(S.pid, { tema: t.tema, paleta: t.paleta || S.store.BORRAR });
+  panelClave = '';
+  actualizarPanel();
+}
+
+/** Aplica un cambio a varias diapositivas como un solo paso de deshacer. */
+function aplicarGrupo(grupo, pres = null) {
+  if (S.editando) finalizarEdicion();
+  cerrarSesionAuto();
+  for (const g of grupo) aplicarCambios(g.sid, g.cambios, g.bg, { registrar: false });
+  if (pres) guardarTemaPres(pres.despues);
+  registrarOp({ grupo, pres });
+  refrescarTrasCambio();
+}
+
+async function aplicarTema(id, paleta = null) {
+  const dest = id === 'personalizado' ? paletaSegura(paleta) : TEMAS[id];
+  if (!dest) { aviso('Esos colores o fuentes no son válidos.', 'error'); return; }
+  if (!(await confirmar('Se cambiarán los colores y las fuentes de todas las diapositivas. Los elementos con colores propios se respetan. Podrás deshacerlo con Ctrl+Z.', 'Aplicar tema', `¿Aplicar el tema «${dest.nombre}»?`, false))) return;
+  const de = tema();
+  const grupo = [];
+  for (const sl of S.slides) {
+    const r = retemarDiapositiva(sl, de, dest);
+    if (r.cambios.length || r.bg) grupo.push({ sid: sl.id, cambios: r.cambios, bg: r.bg });
+  }
+  const pres = {
+    antes: { tema: (S.pres && S.pres.tema) || 'claro', paleta: (S.pres && S.pres.paleta) || null },
+    despues: { tema: id, paleta: id === 'personalizado' ? dest : null },
+  };
+  aplicarGrupo(grupo, pres);
+  aviso(`Tema «${dest.nombre}» aplicado.`, 'ok');
+}
+
+function escalarTextoDeck(factor) {
+  const grupo = [];
+  for (const sl of S.slides) {
+    const cambios = [];
+    for (const [id, e] of Object.entries(sl.el || {})) {
+      const hn = escalarTextoHtml(e.h, factor);
+      if (hn !== e.h) cambios.push({ id, antes: { z: e.z, h: e.h }, despues: { z: e.z, h: hn } });
+    }
+    if (cambios.length) grupo.push({ sid: sl.id, cambios, bg: null });
+  }
+  if (!grupo.length) { aviso('No hay texto que ajustar.'); return; }
+  aplicarGrupo(grupo, null);
+  aviso(factor > 1 ? 'Texto agrandado en toda la presentación.' : 'Texto reducido en toda la presentación.', 'ok');
+}
+
+function colorHex(v, defecto) {
+  const m = /#[0-9a-f]{6}/i.exec(v || '');
+  if (m) return m[0].toLowerCase();
+  const r = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(v || '');
+  if (r) return '#' + [r[1], r[2], r[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join('');
+  return defecto;
+}
+
+function seccionTema() {
+  const actual = (S.pres && S.pres.tema) || 'claro';
+  const t0 = tema();
+  const opciones = Object.entries(TEMAS).map(([id, t]) => {
+    const mini = h('span', { class: 'tema-mini' }, h('b', {}, 'Aa'), h('i'));
+    mini.style.background = t.bg; mini.style.color = t.fg; mini.firstChild.style.fontFamily = t.titulo; mini.lastChild.style.background = t.ac;
+    const b = h('button', { type: 'button', class: 'tema-op' + (id === actual ? ' activo' : ''), title: t.nombre, 'aria-label': `Tema ${t.nombre}`, 'aria-pressed': String(id === actual) },
+      mini, h('span', { class: 'tema-nom' }, t.nombre));
+    b.addEventListener('click', () => { if (id !== actual) aplicarTema(id); });
+    return b;
+  });
+
+  const col = (etq, val) => { const i = h('input', { type: 'color', value: val, 'aria-label': etq, title: etq }); return h('label', { class: 'num' }, etq, i); };
+  const cFondo = col('Fondo', colorHex(t0.bg, '#ffffff')), cTexto = col('Texto', colorHex(t0.fg, '#1c1f23'));
+  const cAcento = col('Acento', colorHex(t0.ac, '#1f7a4d')), cSuave = col('Fondo suave', colorHex(t0.suave, '#eaf3ee'));
+  const sel = (etq, val) => {
+    const x = h('select', { 'aria-label': etq }, FUENTES.map(([nom, v]) => h('option', { value: v }, nom)));
+    x.value = FUENTES.some(([, v]) => v === val) ? val : FUENTES[0][1];
+    return x;
+  };
+  const fTit = sel('Fuente de los títulos', t0.titulo), fCue = sel('Fuente del texto', t0.fuente);
+  const val = (c) => c.querySelector('input').value;
+  const aplicar = h('button', { type: 'button', class: 'btn primario' }, 'Aplicar a toda la presentación');
+  aplicar.addEventListener('click', () => aplicarTema('personalizado', {
+    bg: val(cFondo), fg: val(cTexto), ac: val(cAcento), suave: val(cSuave), fuente: fCue.value, titulo: fTit.value,
+  }));
+  const pers = h('details', { class: 'paleta', open: actual === 'personalizado' }, h('summary', {}, 'Personalizar colores y fuentes'),
+    h('div', { class: 'fila' }, cFondo, cTexto, cAcento),
+    h('div', { class: 'fila' }, cSuave),
+    h('div', { class: 'fila' }, h('label', { class: 'num' }, 'Títulos', fTit)),
+    h('div', { class: 'fila' }, h('label', { class: 'num' }, 'Texto', fCue)),
+    h('div', { class: 'fila' }, aplicar));
+
+  return seccion('Tema de la presentación',
+    h('div', { class: 'temas' }, opciones),
+    pers,
+    h('div', { class: 'fila', style: { marginTop: '10px', alignItems: 'center' } }, h('span', { class: 'num' }, 'Tamaño de todo el texto'),
+      botonCorto('A−', () => escalarTextoDeck(0.9), { titulo: 'Reducir todo el texto un 10 %' }),
+      botonCorto('A+', () => escalarTextoDeck(1.1), { titulo: 'Agrandar todo el texto un 10 %' })),
+    h('p', { class: 'vacio-panel' }, 'Cambia colores y fuentes de todas las diapositivas a la vez. Las diapositivas nuevas usan el tema elegido.'));
+}
+
 function panelSlide() {
   P = {};
   const raiz = h('div');
@@ -1567,6 +1700,7 @@ function panelSlide() {
     antes = null;
   });
   P.bgColor = color;
+  raiz.append(seccionTema());
   raiz.append(seccion('Fondo de la diapositiva',
     h('div', { class: 'fila' }, h('label', { class: 'num' }, 'Color', color)),
     h('div', { class: 'fondos' }, FONDOS.map((f) => {
@@ -2070,7 +2204,12 @@ function prepararUnaVez() {
   });
   $('#btn-panel').addEventListener('click', () => E.panelDer.classList.toggle('abierto'));
   $('#btn-nueva-diap').addEventListener('click', (e) => {
-    abrirMenu(e.currentTarget, LAYOUTS.map((l) => ({ texto: l.nombre, icono: '▫', fn: () => nuevaDiapositiva(l.id) })));
+    abrirMenu(e.currentTarget, [
+      ...LAYOUTS.map((l) => ({ texto: l.nombre, icono: '▫', fn: () => nuevaDiapositiva(l.id) })),
+      '-',
+      { texto: 'Importar guion o HTML…', icono: '⇪', fn: () => abrirImportador({ tema, alCrear: crearVarias }) },
+      { texto: 'Crear con una IA (copiar prompt)…', icono: '✦', fn: () => abrirPromptIA({ tema }) },
+    ]);
   });
   $('#ins-texto').addEventListener('click', (e) => menuTexto(e.currentTarget));
   $('#ins-forma').addEventListener('click', (e) => menuFormas(e.currentTarget));

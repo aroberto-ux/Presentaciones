@@ -2,7 +2,7 @@
 // Aplica el formato a la selección (negrita, cursiva, color, tamaño…) o a todo el elemento
 // (alineación). El resultado pasa siempre por el sanitizador al guardarse.
 
-import { h } from './ui.js?v=2026.11.02-b';
+import { h } from './ui.js?v=2026.11.03-a';
 
 const COLORES = ['#1c1f23', '#ffffff', '#c0392b', '#e67e22', '#f2c94c', '#1f7a4d', '#2563eb', '#7c3aed', '#db2777', '#6b7280'];
 

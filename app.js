@@ -3,14 +3,14 @@
 //   #presentaciones/<id>[/<n>]   → editor (diapositiva n)
 //   #presentar/<id>[/<n>]        → modo presentar
 
-import { S, E } from './estado.js?v=2026.11.02-b';
-import { iniciarStore } from './store.js?v=2026.11.02-b';
-import { opciones } from './firebase-config.js?v=2026.11.02-b';
-import { $, aviso, h } from './ui.js?v=2026.11.02-b';
-import { VERSION } from './version.js?v=2026.11.02-b';
-import { entrarLista, salirLista } from './lista.js?v=2026.11.02-b';
-import { entrarEditor, salirEditor } from './editor.js?v=2026.11.02-b';
-import { entrarPresentar, salirPresentar } from './presentar.js?v=2026.11.02-b';
+import { S, E } from './estado.js?v=2026.11.03-a';
+import { iniciarStore } from './store.js?v=2026.11.03-a';
+import { opciones } from './firebase-config.js?v=2026.11.03-a';
+import { $, aviso, h } from './ui.js?v=2026.11.03-a';
+import { VERSION } from './version.js?v=2026.11.03-a';
+import { entrarLista, salirLista } from './lista.js?v=2026.11.03-a';
+import { entrarEditor, salirEditor } from './editor.js?v=2026.11.03-a';
+import { entrarPresentar, salirPresentar } from './presentar.js?v=2026.11.03-a';
 
 function referencias() {
   Object.assign(E, {

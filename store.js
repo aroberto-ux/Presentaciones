@@ -7,7 +7,7 @@
 //   presentaciones/{pid}/diapositivas/{sid}   { orden, bg, notas, el: { <id>: { z, h } } }
 //   presentaciones/{pid}/presencia/{uid}      { nombre, color, diap, sel, ts }
 
-import { firebaseConfig, opciones } from './firebase-config.js?v=2026.11.02-b';
+import { firebaseConfig, opciones } from './firebase-config.js?v=2026.11.03-a';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const COLORES = [210, 150, 28, 280, 340, 190, 100, 250, 12, 170];
@@ -113,10 +113,10 @@ function crearStoreLocal() {
     },
     suscribirDiapositivas(pid, cb) { return suscribir(() => cb(listaSlides(pid))); },
 
-    async crearPresentacion({ titulo, tema }, diapositivas) {
+    async crearPresentacion({ titulo, tema, paleta }, diapositivas) {
       const id = nuevoIdLocal('p');
       const ahora = Date.now();
-      datos.presentaciones[id] = { id, titulo, tema, creadoPor: uid, creado: ahora, actualizado: ahora };
+      datos.presentaciones[id] = { id, titulo, tema, ...(paleta ? { paleta } : {}), creadoPor: uid, creado: ahora, actualizado: ahora };
       datos.diapositivas[id] = {};
       diapositivas.forEach((s, i) => { datos.diapositivas[id][nuevoIdLocal('s')] = { ...copia(s), orden: i + 1 }; });
       guardar(); emitir();
@@ -153,11 +153,11 @@ function crearStoreLocal() {
 
     async exportar(pid) {
       const p = datos.presentaciones[pid]; if (!p) throw new Error('No existe la presentación');
-      return { formato: 'presentaciones-v1', titulo: p.titulo, tema: p.tema, diapositivas: listaSlides(pid).map(({ id, ...r }) => r) };
+      return { formato: 'presentaciones-v1', titulo: p.titulo, tema: p.tema, ...(p.paleta ? { paleta: p.paleta } : {}), diapositivas: listaSlides(pid).map(({ id, ...r }) => r) };
     },
     async importar(obj) {
-      const { titulo, tema, diapositivas } = obj;
-      return this.crearPresentacion({ titulo, tema }, diapositivas);
+      const { titulo, tema, paleta, diapositivas } = obj;
+      return this.crearPresentacion({ titulo, tema, paleta }, diapositivas);
     },
 
     suscribirPresencia(pid, cb) { queueMicrotask(() => cb([])); return () => {}; },
@@ -266,11 +266,11 @@ async function crearStoreFirebase() {
       return F.onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))), alError);
     },
 
-    async crearPresentacion({ titulo, tema }, diapositivas) {
+    async crearPresentacion({ titulo, tema, paleta }, diapositivas) {
       const ref = F.doc(F.collection(db, 'presentaciones'));
       const ahora = Date.now();
       const lote = F.writeBatch(db);
-      lote.set(ref, { titulo, tema, creadoPor: usuario.uid, creado: ahora, actualizado: ahora });
+      lote.set(ref, { titulo, tema, ...(paleta ? { paleta } : {}), creadoPor: usuario.uid, creado: ahora, actualizado: ahora });
       diapositivas.forEach((s, i) => {
         lote.set(F.doc(colSlides(ref.id)), { ...s, orden: i + 1 });
       });
@@ -314,13 +314,13 @@ async function crearStoreFirebase() {
       if (!p.exists()) throw new Error('No existe la presentación');
       const d = p.data();
       return {
-        formato: 'presentaciones-v1', titulo: d.titulo, tema: d.tema,
+        formato: 'presentaciones-v1', titulo: d.titulo, tema: d.tema, ...(d.paleta ? { paleta: d.paleta } : {}),
         diapositivas: s.docs.map((x) => { const { orden, ...r } = x.data(); return r; }),
       };
     },
     async importar(obj) {
-      const { titulo, tema, diapositivas } = obj;
-      return this.crearPresentacion({ titulo, tema }, diapositivas);
+      const { titulo, tema, paleta, diapositivas } = obj;
+      return this.crearPresentacion({ titulo, tema, paleta }, diapositivas);
     },
 
     suscribirPresencia(pid, cb) {

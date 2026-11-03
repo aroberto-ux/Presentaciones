@@ -82,13 +82,13 @@ export function pedir({ titulo, etiqueta, valor = '', ok = 'Aceptar', extra = nu
   });
 }
 
-export function confirmar(texto, ok = 'Eliminar', titulo = '¿Seguro?') {
+export function confirmar(texto, ok = 'Eliminar', titulo = '¿Seguro?', peligro = true) {
   return new Promise((res) => {
     modal({
       titulo, cuerpo: h('p', {}, texto),
       acciones: [
         { texto: 'Cancelar', fn: (c) => c(false) },
-        { texto: ok, peligro: true, fn: (c) => c(true) },
+        { texto: ok, peligro, primario: !peligro, fn: (c) => c(true) },
       ],
       alCerrar: (v) => res(v === true),
     });

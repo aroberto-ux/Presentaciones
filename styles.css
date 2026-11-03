@@ -476,3 +476,20 @@ body.arrastrando-divisor iframe, body.arrastrando-divisor .ce-ta { pointer-event
 /* Durante «Probar animaciones» el lienzo no se puede editar */
 #stage.probando { cursor: progress; }
 #stage.probando [data-eid] { pointer-events: none; }
+
+/* Temas */
+.temas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px; }
+.tema-op { display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 1px solid var(--borde); border-radius: 8px; background: transparent; color: inherit; cursor: pointer; text-align: left; font: inherit; }
+.tema-op:hover { border-color: var(--sel); }
+.tema-op.activo { border-color: var(--sel); box-shadow: 0 0 0 2px var(--sel) inset; }
+.tema-mini { display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 10px; border-radius: 5px; font-size: 18px; }
+.tema-mini b { font-weight: 700; }
+.tema-mini i { width: 18px; height: 18px; border-radius: 50%; display: block; }
+.tema-nom { font-size: 11.5px; padding: 0 2px 2px; }
+
+/* Importar guion / prompt para IA */
+.imp-ta { width: 100%; box-sizing: border-box; resize: vertical; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.45; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 8px; background: var(--sup); color: var(--txt); tab-size: 4; }
+.imp-vista { color: var(--suave); margin-top: 6px; }
+.imp-ayuda { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; color: var(--suave); }
+.imp-ayuda code { font-size: 12px; background: var(--sup2); padding: 1px 5px; border-radius: 4px; }
+.modal-cuerpo .fila { display: flex; gap: 8px; flex-wrap: wrap; }

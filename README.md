@@ -94,6 +94,19 @@ En la pestaña **Código** del panel derecho:
   un *movimiento continuo* (pulso, flotar, girar, saltar, parpadeo, latido), duración, retraso y empezar *con un clic*: esos elementos aparecen uno a uno con espacio, → o un toque,
   y ← los vuelve a ocultar. «▶ Probar animaciones» las reproduce en el editor. Respetan «reducir movimiento» del sistema.
 
+## Temas, guiones e IA
+
+- **Temas (panel Diseño, sin elementos seleccionados)**: diez temas listos (Claro, Oscuro, Verde institucional, Cálido, Azul corporativo, Pizarra, Académico, Violeta, Minimalista, Alto contraste)
+  y «Personalizar colores y fuentes». Al elegir uno se recolorean y cambian de fuente todas las diapositivas a la vez (un solo Ctrl+Z lo deshace);
+  los elementos con colores propios no se tocan. Las diapositivas y elementos nuevos usan el tema elegido. También hay **A− / A+** para cambiar el tamaño de todo el texto.
+- **Diseños nuevos (＋)**: Comparación A/B, Pasos 1·2·3, Tres tarjetas, Código y explicación y Fórmula destacada.
+- **Importar guion (＋ → Importar guion o HTML…)**: pega o abre un `.md`/`.txt` y cada título se vuelve una diapositiva con el tema de la presentación.
+  `# Título` = portada/sección, `## Título` = diapositiva, `---` = diapositiva nueva, `- punto` listas (dos niveles), `**negrita**`, `*cursiva*`, `` `código` ``,
+  bloques ```` ```python ```` con colores, `$$ fórmula $$`, `![](https://…)` imágenes, tablas con `|`, `> cita` y `Notas: …` (notas del orador).
+  Lo que no cabe continúa en otra diapositiva «(cont.)». También acepta HTML: cada `<section>` pegada se convierte en una diapositiva.
+- **Crear con una IA (＋ → Crear con una IA…)**: describes lo que quieres y copias un prompt con las reglas de esta página y el tema de tu presentación.
+  Pégalo en tu asistente de IA y luego importa su respuesta con «Importar guion o HTML…».
+
 ## El código HTML de una diapositiva
 
 ```html
@@ -148,6 +161,7 @@ En la pestaña **Código** del panel derecho:
 - `app.js` (arranque y rutas), `lista.js`, `editor.js`, `presentar.js`, `exportar.js` — pantallas.
 - `codigo-editor.js` — el editor de código (sin dependencias). `paneles.js` — divisores y modo dividido.
 - `store.js` — acceso a datos (Firebase o modo local). `slides.js` — modelo de diapositivas. `sanitize.js` — limpieza del HTML.
+- `temas.js` (cambio de tema), `importar.js` (guiones Markdown/HTML), `prompt-ia.js` (prompt para IA), `resaltar.js` (colores del código).
 - `formula.js` (fórmulas LaTeX), `formato.js` (barra de formato de texto), `tabla.js` (operaciones de tablas), `vendor/katex/` (KaTeX 0.16, licencia MIT).
 - `version.js` — número de versión (aparece al final de la lista y en los avisos de error).
 - `firebase-config.js` — **el único archivo que debes editar** para activar Firebase.
