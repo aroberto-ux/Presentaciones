@@ -1,7 +1,7 @@
 // Paneles del editor: divisores arrastrables, plegado y «modo código»
 // (código a la izquierda, diapositiva en vivo a la derecha, como en Overleaf).
 
-import { E } from './estado.js?v=2026.11.03-a';
+import { E } from './estado.js?v=2026.11.03-b';
 
 const CLAVE = 'pres.ui.v1';
 const MIN_DIAP = 120, MAX_DIAP = 420, DEF_DIAP = 176;

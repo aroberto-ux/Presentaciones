@@ -1,8 +1,8 @@
 // Cambio de tema de toda la presentación: recolorea y cambia las fuentes de los elementos que
 // usan los colores del tema anterior (los que tienen colores propios no se tocan).
 
-import { nodoDesdeHTML } from './sanitize.js?v=2026.11.03-a';
-import { htmlDeNodo, contraste } from './slides.js?v=2026.11.03-a';
+import { nodoDesdeHTML } from './sanitize.js?v=2026.11.03-b';
+import { htmlDeNodo, contraste } from './slides.js?v=2026.11.03-b';
 
 const sc = document.createElement('div');
 

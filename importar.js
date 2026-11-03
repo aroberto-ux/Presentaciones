@@ -12,11 +12,11 @@
 //   ---                 → fuerza una diapositiva nueva
 //   Notas: …  o  <!-- … -->   → notas del orador
 
-import { h, modal, aviso } from './ui.js?v=2026.11.03-a';
+import { h, modal, aviso } from './ui.js?v=2026.11.03-b';
 import {
   TEMAS, contraste, nuevoId, htmlTexto, htmlForma, htmlTabla, htmlCodigo, htmlFormula, construirNodo, limpiarHtmlElemento, parsearCodigo,
-} from './slides.js?v=2026.11.03-a';
-import { LENGUAJES } from './resaltar.js?v=2026.11.03-a';
+} from './slides.js?v=2026.11.03-b';
+import { LENGUAJES } from './resaltar.js?v=2026.11.03-b';
 
 export const MAX_DIAPOSITIVAS = 200;
 const MAX_TEXTO = 300000;

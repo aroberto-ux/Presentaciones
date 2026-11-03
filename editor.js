@@ -1,25 +1,26 @@
 // Editor: lienzo visual tipo Canva + editor de código + colaboración en vivo.
 
-import { S, E } from './estado.js?v=2026.11.03-a';
-import { h, $, $$, aviso, modal, pedir, confirmar, abrirMenu, cerrarMenu, hayModal, copiarTexto, iniciales } from './ui.js?v=2026.11.03-a';
+import { S, E } from './estado.js?v=2026.11.03-b';
+import { h, $, $$, aviso, modal, pedir, confirmar, abrirMenu, cerrarMenu, hayModal, copiarTexto, iniciales } from './ui.js?v=2026.11.03-b';
 import {
   ANCHO, ALTO, LIMITE_BYTES, TEMAS, LAYOUTS, r1, nuevoId, elementoNuevo, htmlImagen, htmlTexto,
   diapositivaDesdeLayout, reconciliar, pintarDiapositiva, aplicarFondo, htmlDeNodo, limpiarHtmlElemento,
   leerCaja, fijarRotacion, idsOrdenados, serializarCodigo, serializarElemento, parsearCodigo, parsearElemento,
   pesoDiapositiva, esEstilo, temaDePres, paletaSegura,
-} from './slides.js?v=2026.11.03-a';
-import { retemarDiapositiva, escalarTextoHtml } from './temas.js?v=2026.11.03-a';
-import { abrirImportador } from './importar.js?v=2026.11.03-a';
-import { abrirPromptIA } from './prompt-ia.js?v=2026.11.03-a';
-import { nodoDesdeHTML } from './sanitize.js?v=2026.11.03-a';
-import { descargarHTML, descargarJSON, imprimir } from './exportar.js?v=2026.11.03-a';
-import { crearEditorCodigo, crearEditorPlano } from './codigo-editor.js?v=2026.11.03-a';
-import { pintarFormula, errorTex, texAHtml, EJEMPLOS, PALETA } from './formula.js?v=2026.11.03-a';
-import { interiorLinea, contraste } from './slides.js?v=2026.11.03-a';
-import { crearBarraTexto } from './formato.js?v=2026.11.03-a';
-import { LENGUAJES, TEMAS_CODIGO, pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.03-a';
-import { agregarFila, quitarFila, agregarColumna, quitarColumna, alternarEncabezado, tieneEncabezado, celdaVecina } from './tabla.js?v=2026.11.03-a';
-import { iniciarPaneles, alternarModoCodigo, pestanaActiva, aplicar as aplicarPaneles } from './paneles.js?v=2026.11.03-a';
+} from './slides.js?v=2026.11.03-b';
+import { retemarDiapositiva, escalarTextoHtml } from './temas.js?v=2026.11.03-b';
+import { abrirImportador } from './importar.js?v=2026.11.03-b';
+import { abrirPromptIA } from './prompt-ia.js?v=2026.11.03-b';
+import { abrirEditorJson } from './json-editor.js?v=2026.11.03-b';
+import { nodoDesdeHTML } from './sanitize.js?v=2026.11.03-b';
+import { descargarHTML, descargarJSON, imprimir } from './exportar.js?v=2026.11.03-b';
+import { crearEditorCodigo, crearEditorPlano } from './codigo-editor.js?v=2026.11.03-b';
+import { pintarFormula, errorTex, texAHtml, EJEMPLOS, PALETA } from './formula.js?v=2026.11.03-b';
+import { interiorLinea, contraste } from './slides.js?v=2026.11.03-b';
+import { crearBarraTexto } from './formato.js?v=2026.11.03-b';
+import { LENGUAJES, TEMAS_CODIGO, pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.03-b';
+import { agregarFila, quitarFila, agregarColumna, quitarColumna, alternarEncabezado, tieneEncabezado, celdaVecina } from './tabla.js?v=2026.11.03-b';
+import { iniciarPaneles, alternarModoCodigo, pestanaActiva, aplicar as aplicarPaneles } from './paneles.js?v=2026.11.03-b';
 
 let enEditor = false;
 let cableado = false;
@@ -2098,8 +2099,32 @@ function compartir() {
   modal({ titulo: 'Compartir presentación', cuerpo, acciones: [{ texto: 'Listo', primario: true, fn: (c) => c(true) }], ancho: 520 });
 }
 
+/** Abre el editor del JSON de la presentación completa. */
+function editarJson() {
+  if (S.editando) finalizarEdicion();
+  cerrarSesionAuto();
+  vaciarPendientes();
+  abrirEditorJson({ pid: S.pid, estado: () => ({ pres: S.pres || {}, slides: S.slides }), BORRAR: S.store.BORRAR, aplicar: aplicarPlanJson });
+}
+
+async function aplicarPlanJson(plan) {
+  S.undo = []; S.redo = []; S.sel = null;
+  actualizarBotonesUndo();
+  if (plan.pres) {
+    if (S.pres) { S.pres.titulo = plan.pres.titulo; S.pres.tema = plan.pres.tema; if (plan.pres.paleta) S.pres.paleta = plan.pres.paleta; else delete S.pres.paleta; }
+    await S.store.actualizarPresentacion(S.pid, { titulo: plan.pres.titulo, tema: plan.pres.tema, paleta: plan.pres.paleta || S.store.BORRAR });
+  }
+  for (const c of plan.crear) await S.store.crearDiapositiva(S.pid, { ...c.datos, orden: c.orden }, c.id);
+  for (const u of plan.actualizar) { await S.store.actualizarDiapositiva(S.pid, u.id, u.parche); programarMiniatura(u.id); }
+  for (const id of plan.eliminar) await S.store.eliminarDiapositiva(S.pid, id);
+  panelClave = '';
+  refrescarTrasCambio();
+}
+
 function menuExportar(ancla) {
   abrirMenu(ancla, [
+    { texto: 'Editar el JSON de la presentación…', icono: '{ }', fn: editarJson },
+    '-',
     { texto: 'Descargar como HTML (para presentar sin conexión)', icono: '⇩', fn: () => descargarHTML(S.pres, S.slides) },
     { texto: 'Copia de seguridad (.json)', icono: '⇩', fn: () => descargarJSON(S.pid).catch(() => aviso('No se pudo exportar.', 'error')) },
     { texto: 'Imprimir / guardar como PDF', icono: '🖶', fn: () => imprimir(S.slides) },
@@ -2196,6 +2221,7 @@ function prepararUnaVez() {
   $('#btn-deshacer').addEventListener('click', deshacer);
   $('#btn-rehacer').addEventListener('click', rehacer);
   $('#btn-compartir').addEventListener('click', compartir);
+  $('#btn-json').addEventListener('click', editarJson);
   $('#btn-exportar').addEventListener('click', (e) => menuExportar(e.currentTarget));
   $('#btn-presentar').addEventListener('click', () => {
     vaciarPendientes();

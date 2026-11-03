@@ -2,9 +2,9 @@
 // vigente y lo que la persona quiere, para pegarlas en un asistente de IA. La respuesta (una o varias
 // <section>) se pega luego en «Importar» o en la pestaña Código.
 
-import { h, modal, aviso, copiarTexto } from './ui.js?v=2026.11.03-a';
-import { ENTRADAS, BUCLES } from './sanitize.js?v=2026.11.03-a';
-import { LENGUAJES } from './resaltar.js?v=2026.11.03-a';
+import { h, modal, aviso, copiarTexto } from './ui.js?v=2026.11.03-b';
+import { ENTRADAS, BUCLES } from './sanitize.js?v=2026.11.03-b';
+import { LENGUAJES } from './resaltar.js?v=2026.11.03-b';
 
 const lista = (a) => a.map((x) => `"${x}"`).join(', ');
 

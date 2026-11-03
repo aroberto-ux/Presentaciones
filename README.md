@@ -107,6 +107,18 @@ En la pestaña **Código** del panel derecho:
 - **Crear con una IA (＋ → Crear con una IA…)**: describes lo que quieres y copias un prompt con las reglas de esta página y el tema de tu presentación.
   Pégalo en tu asistente de IA y luego importa su respuesta con «Importar guion o HTML…».
 
+## Editor del JSON de la presentación
+
+El botón **{ } JSON** (arriba, o **Exportar → Editar el JSON de la presentación…**) abre toda la presentación como texto: título, tema, y para cada diapositiva su `id`, `bg` (fondo),
+`notas` y `el` (los elementos, cada uno con `z` —orden de capas— y `h` —su HTML—).
+
+- Edítalo con libertad: **Formatear**, tamaño de letra, ajuste de líneas, números de línea y un aviso en vivo con la línea y columna de cualquier error de sintaxis («Ir al error»).
+- Al **Aplicar** (Ctrl+Enter) se compara con lo que hay y solo se envía lo que cambió. Si conservas el `id` de una diapositiva o de un elemento se actualiza; si lo quitas se crea uno nuevo;
+  lo que borres del texto se elimina. El orden de la lista es el orden de las diapositivas.
+- Antes de aplicar se muestra un resumen (cuántas se modifican, crean o eliminan). Todo el HTML y los fondos pasan por el mismo limpiador de seguridad que el resto de la página.
+- No se puede deshacer con Ctrl+Z, pero al volver a abrir el editor aparece **Cargar versión anterior** con el JSON previo a tu última aplicación.
+- **Descargar .json** guarda el texto actual; **Recargar** lo vuelve a leer de la presentación.
+
 ## El código HTML de una diapositiva
 
 ```html
@@ -161,7 +173,7 @@ En la pestaña **Código** del panel derecho:
 - `app.js` (arranque y rutas), `lista.js`, `editor.js`, `presentar.js`, `exportar.js` — pantallas.
 - `codigo-editor.js` — el editor de código (sin dependencias). `paneles.js` — divisores y modo dividido.
 - `store.js` — acceso a datos (Firebase o modo local). `slides.js` — modelo de diapositivas. `sanitize.js` — limpieza del HTML.
-- `temas.js` (cambio de tema), `importar.js` (guiones Markdown/HTML), `prompt-ia.js` (prompt para IA), `resaltar.js` (colores del código).
+- `json-editor.js` (editor del JSON), `temas.js` (cambio de tema), `importar.js` (guiones Markdown/HTML), `prompt-ia.js` (prompt para IA), `resaltar.js` (colores del código).
 - `formula.js` (fórmulas LaTeX), `formato.js` (barra de formato de texto), `tabla.js` (operaciones de tablas), `vendor/katex/` (KaTeX 0.16, licencia MIT).
 - `version.js` — número de versión (aparece al final de la lista y en los avisos de error).
 - `firebase-config.js` — **el único archivo que debes editar** para activar Firebase.

@@ -493,3 +493,22 @@ body.arrastrando-divisor iframe, body.arrastrando-divisor .ce-ta { pointer-event
 .imp-ayuda { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; color: var(--suave); }
 .imp-ayuda code { font-size: 12px; background: var(--sup2); padding: 1px 5px; border-radius: 4px; }
 .modal-cuerpo .fila { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Editor de JSON */
+.modal.modal-json { height: 92vh; display: flex; flex-direction: column; padding: 16px 18px; }
+.modal-json .modal-cuerpo { flex: 1; min-height: 0; }
+.json-caja { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
+.json-barra { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.json-chk { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--suave); margin-left: 6px; }
+.json-ed { flex: 1; min-height: 160px; display: flex; border: 1px solid var(--borde); border-radius: 8px; overflow: hidden; background: var(--sup); }
+.json-nums, .json-ta { margin: 0; padding: 10px 0; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5; }
+.json-nums { flex: none; min-width: 3.4em; padding-right: 10px; text-align: right; color: var(--suave); background: var(--sup2); border-right: 1px solid var(--borde); overflow: hidden; user-select: none; }
+.json-ta { flex: 1; min-width: 0; border: 0; outline: 0; resize: none; padding-left: 12px; padding-right: 12px; background: transparent; color: var(--txt); tab-size: 2; overflow: auto; }
+.json-sin-nums .json-nums { display: none; }
+.json-pie { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+.json-estado { font-size: 12.5px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.json-estado.ok { color: var(--ac); }
+.json-estado.err { color: #c0392b; font-weight: 600; }
+.json-avisos { font-size: 12.5px; color: #b45309; }
+.json-avisos:empty { display: none; }
+@media (max-width: 900px) { #btn-json { display: none; } }

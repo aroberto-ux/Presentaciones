@@ -4,9 +4,9 @@
 //   { orden, bg: 'css del fondo', notas: '', el: { <id>: { z: 1, h: '<div …>…</div>' } } }
 // Cada elemento es un trozo de HTML con posición absoluta sobre un lienzo de 1280×720.
 
-import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo, dividirDecls, analizarCss, cssATexto, cssBonito, limpiarCss, nsDeCss } from './sanitize.js?v=2026.11.03-a';
-import { pintarFormula } from './formula.js?v=2026.11.03-a';
-import { pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.03-a';
+import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo, dividirDecls, analizarCss, cssATexto, cssBonito, limpiarCss, nsDeCss } from './sanitize.js?v=2026.11.03-b';
+import { pintarFormula } from './formula.js?v=2026.11.03-b';
+import { pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.03-b';
 
 export const ANCHO = 1280;
 export const ALTO = 720;

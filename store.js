@@ -7,7 +7,7 @@
 //   presentaciones/{pid}/diapositivas/{sid}   { orden, bg, notas, el: { <id>: { z, h } } }
 //   presentaciones/{pid}/presencia/{uid}      { nombre, color, diap, sel, ts }
 
-import { firebaseConfig, opciones } from './firebase-config.js?v=2026.11.03-a';
+import { firebaseConfig, opciones } from './firebase-config.js?v=2026.11.03-b';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const COLORES = [210, 150, 28, 280, 340, 190, 100, 250, 12, 170];

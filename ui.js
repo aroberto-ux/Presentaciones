@@ -36,11 +36,12 @@ export function aviso(texto, tipo = 'info', ms = 3200) {
 // ── Diálogos ────────────────────────────────────────────────────────────
 
 let modalesAbiertos = 0;
+const pilaModales = []; // el de arriba es el único que responde a Esc
 export const hayModal = () => modalesAbiertos > 0;
 
-export function modal({ titulo, cuerpo, acciones = [], ancho = 420, alCerrar }) {
+export function modal({ titulo, cuerpo, acciones = [], ancho = 420, alCerrar, clase = '', cerrarFuera = true, antesDeCerrar = null }) {
   const fondo = h('div', { class: 'modal-fondo' });
-  const caja = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', style: { maxWidth: ancho + 'px' } },
+  const caja = h('div', { class: ('modal ' + clase).trim(), role: 'dialog', 'aria-modal': 'true', style: { maxWidth: ancho + 'px' } },
     h('h2', {}, titulo), h('div', { class: 'modal-cuerpo' }, cuerpo),
     h('div', { class: 'modal-acciones' }, acciones.map((a) => h('button', {
       class: a.primario ? 'btn primario' : a.peligro ? 'btn peligro' : 'btn',
@@ -48,17 +49,27 @@ export function modal({ titulo, cuerpo, acciones = [], ancho = 420, alCerrar }) 
     }, a.texto))));
   fondo.append(caja);
   modalesAbiertos++;
+  const yo = {};
+  pilaModales.push(yo);
   let cerrado = false;
+  let consultando = false;
   function cerrar(valor) {
-    if (cerrado) return;
+    if (cerrado || consultando) return;
+    // Cerrar sin elegir (Esc, clic fuera) puede requerir confirmación si hay cambios sin guardar.
+    if (valor === null && antesDeCerrar) {
+      consultando = true;
+      Promise.resolve(antesDeCerrar()).then((ok) => { consultando = false; if (ok) cerrar(valor); });
+      return;
+    }
     cerrado = true; modalesAbiertos--;
+    pilaModales.splice(pilaModales.indexOf(yo), 1);
     fondo.remove(); document.removeEventListener('keydown', tecla, true);
     if (alCerrar) alCerrar(valor);
   }
   function tecla(e) {
-    if (e.key === 'Escape') { e.stopPropagation(); cerrar(null); }
+    if (e.key === 'Escape' && pilaModales[pilaModales.length - 1] === yo) { e.stopPropagation(); cerrar(null); }
   }
-  fondo.addEventListener('pointerdown', (e) => { if (e.target === fondo) cerrar(null); });
+  fondo.addEventListener('pointerdown', (e) => { if (cerrarFuera && e.target === fondo) cerrar(null); });
   document.addEventListener('keydown', tecla, true);
   document.body.append(fondo);
   return { cerrar, caja };
