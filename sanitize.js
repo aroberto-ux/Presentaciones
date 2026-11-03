@@ -7,7 +7,12 @@
 const NS_SVG = 'http://www.w3.org/2000/svg';
 const NS_HTML = 'http://www.w3.org/1999/xhtml';
 
-export const TIPOS = new Set(['texto', 'forma', 'img', 'html', 'formula', 'linea', 'tabla']);
+export const TIPOS = new Set(['texto', 'forma', 'img', 'html', 'formula', 'linea', 'tabla', 'codigo', 'estilo']);
+
+// Animaciones: se activan solo al presentar (clase .anima en el contenedor). Ver slide.css.
+export const ENTRADAS = ['aparecer', 'arriba', 'abajo', 'izquierda', 'derecha', 'zoom', 'pop', 'desenfoque', 'barrido'];
+export const BUCLES = ['pulso', 'flotar', 'girar', 'rebote', 'parpadeo', 'latido'];
+const LENGUAJES = /^(python|javascript|java|c|cpp|matlab|r|sql|bash|html|css|json|texto)$/;
 
 const HTML_OK = new Set(('div span p br hr h1 h2 h3 h4 h5 h6 b strong i em u s del ins mark small sub sup ' +
   'code pre blockquote ul ol li dl dt dd a img figure figcaption table thead tbody tfoot tr td th caption ' +
@@ -117,6 +122,12 @@ function limpiarAtributos(el, esRaiz, esSvg) {
       if (s) el.setAttribute('style', s); else el.removeAttributeNode(a);
       continue;
     }
+    if (esRaiz && n === 'data-css') {
+      // CSS propio de la diapositiva: solo @keyframes y reglas simples, ya filtrado.
+      const css = el.getAttribute('data-t') === 'estilo' ? limpiarCss(v) : '';
+      if (css) el.setAttribute('data-css', css); else el.removeAttributeNode(a);
+      continue;
+    }
     let ok = false;
     if (n.startsWith('on')) ok = false;
     else if (esRaiz && n === 'data-t') ok = TIPOS.has(v);
@@ -129,6 +140,17 @@ function limpiarAtributos(el, esRaiz, esSvg) {
     else if (esRaiz && n === 'data-g') ok = el.getAttribute('data-t') === 'linea' && /^\d{1,2}$/.test(v);
     else if (esRaiz && n === 'data-estilo') ok = el.getAttribute('data-t') === 'linea' && /^(solid|dashed|dotted)$/.test(v);
     else if (esRaiz && n === 'data-cebra') ok = el.getAttribute('data-t') === 'tabla' && v === '1';
+    // Animaciones (cualquier elemento)
+    else if (esRaiz && n === 'data-anim') ok = ENTRADAS.includes(v);
+    else if (esRaiz && n === 'data-bucle') ok = BUCLES.includes(v);
+    else if (esRaiz && n === 'data-disp') ok = v === 'clic';
+    // Bloque de código
+    else if (esRaiz && n === 'data-lang') ok = el.getAttribute('data-t') === 'codigo' && LENGUAJES.test(v);
+    else if (esRaiz && n === 'data-tema') ok = el.getAttribute('data-t') === 'codigo' && /^(oscuro|claro|terminal)$/.test(v);
+    else if (esRaiz && (n === 'data-nums' || n === 'data-barra' || n === 'data-lin-anim')) ok = el.getAttribute('data-t') === 'codigo' && v === '1';
+    else if (esRaiz && n === 'data-titulo') ok = el.getAttribute('data-t') === 'codigo' && v.length <= 60 && !/[<>]/.test(v);
+    else if (esRaiz && n === 'data-res') ok = el.getAttribute('data-t') === 'codigo' && /^[\d,\- ]{0,60}$/.test(v);
+    else if (n === 'class') ok = /^[a-zA-Z_][\w -]{0,80}$/.test(v);
     else if (ATTR_GLOBAL.has(n)) ok = valorGlobalSeguro(n, v);
     else if (esSvg && ATTR_SVG.has(n)) ok = valorSvgSeguro(n, v);
     else if (tag === 'img' && n === 'src') ok = urlImagenSegura(v);
@@ -203,4 +225,120 @@ export function nodoDesdeHTML(html) {
   const ctx = { quitados: 0 };
   const nodo = limpiarRaiz(primero, ctx);
   return nodo ? { nodo, quitados: ctx.quitados } : null;
+}
+
+// ── CSS propio de la diapositiva ────────────────────────────────────────
+// Solo se admiten @keyframes y reglas con selectores simples. Cada declaración pasa por
+// declaracionSegura; los selectores se limitan al interior de la diapositiva al pintarse.
+
+const RE_SELECTOR = /^[\w\s.#>+~:,()*=\-\[\]"'^$|%]+$/;
+const RE_PASOS = /^(from|to|\d{1,3}(\.\d+)?%)(\s*,\s*(from|to|\d{1,3}(\.\d+)?%))*$/;
+export const LIMITE_CSS = 6000;
+
+function leerBloque(s, i) { // s[i] === '{'; devuelve [contenido, posición tras la llave de cierre]
+  let d = 0, q = null;
+  for (let j = i; j < s.length; j++) {
+    const ch = s[j];
+    if (q) { if (ch === q) q = null; continue; }
+    if (ch === '"' || ch === "'") { q = ch; continue; }
+    if (ch === '{') d++;
+    else if (ch === '}') { d--; if (d === 0) return [s.slice(i + 1, j), j + 1]; }
+  }
+  return [s.slice(i + 1), s.length];
+}
+
+function dividirComas(s) {
+  const out = [];
+  let cur = '', d = 0;
+  for (const ch of s) {
+    if (ch === '(' || ch === '[') d++;
+    else if (ch === ')' || ch === ']') d = Math.max(0, d - 1);
+    if (ch === ',' && d === 0) { out.push(cur); cur = ''; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+function declsSeguras(txt) {
+  return dividirDecls(txt).map(declaracionSegura).filter(Boolean).join(';');
+}
+
+function selectorSeguro(sel) {
+  const s = sel.trim().replace(/\s+/g, ' ');
+  if (!s || s.length > 150 || !RE_SELECTOR.test(s)) return null;
+  if (/url|expression|javascript|@/i.test(s)) return null;
+  return s;
+}
+
+/** Interpreta el CSS y devuelve solo lo permitido: [{kf, pasos:[{sel,d}]} | {sels, d}]. */
+export function analizarCss(texto) {
+  const s = String(texto).slice(0, 30000).replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const reglas = [];
+  let i = 0;
+  while (i < s.length && reglas.length < 80) {
+    const ab = s.indexOf('{', i);
+    if (ab < 0) break;
+    const cabecera = s.slice(i, ab).trim();
+    const [cuerpo, fin] = leerBloque(s, ab);
+    i = fin;
+    const mk = /^@keyframes\s+([a-zA-Z][\w-]{0,40})$/i.exec(cabecera);
+    if (mk) {
+      if (/^pres-/i.test(mk[1])) continue; // reservado para los efectos incluidos
+      const pasos = [];
+      let j = 0;
+      while (j < cuerpo.length && pasos.length < 30) {
+        const b = cuerpo.indexOf('{', j);
+        if (b < 0) break;
+        const sel = cuerpo.slice(j, b).trim().toLowerCase();
+        const [c2, f2] = leerBloque(cuerpo, b);
+        j = f2;
+        if (!RE_PASOS.test(sel)) continue;
+        const d = declsSeguras(c2);
+        if (d) pasos.push({ sel: sel.replace(/\s+/g, ''), d });
+      }
+      if (pasos.length) reglas.push({ kf: mk[1], pasos });
+      continue;
+    }
+    if (cabecera.startsWith('@')) continue; // @media, @import, @font-face… no se admiten
+    const sels = dividirComas(cabecera).map(selectorSeguro).filter(Boolean);
+    const d = declsSeguras(cuerpo);
+    if (sels.length && d) reglas.push({ sels, d });
+  }
+  return reglas;
+}
+
+/** Texto compacto de las reglas; con `ns` los selectores quedan limitados a esa diapositiva. */
+export function cssATexto(reglas, ns = null) {
+  return reglas.map((r) => (r.kf
+    ? `@keyframes ${r.kf}{${r.pasos.map((p) => `${p.sel}{${p.d}}`).join('')}}`
+    : `${r.sels.map((x) => (ns ? `.diap[data-ns="${ns}"] ${x}` : x)).join(',')}{${r.d}}`)).join('\n');
+}
+
+/** Versión legible (una propiedad por línea) para mostrar en el editor de código. */
+export function cssBonito(reglas) {
+  const decls = (d, sg) => dividirDecls(d).map((x) => `${sg}${x.trim().replace(/^([^:]+):\s*/, '$1: ')};`).join('\n');
+  return reglas.map((r) => (r.kf
+    ? `@keyframes ${r.kf} {\n${r.pasos.map((p) => `  ${p.sel} {\n${decls(p.d, '    ')}\n  }`).join('\n')}\n}`
+    : `${r.sels.join(',\n')} {\n${decls(r.d, '  ')}\n}`)).join('\n\n');
+}
+
+/** CSS canónico y seguro (o '' si no queda nada). */
+export function limpiarCss(texto) {
+  const salida = [];
+  let total = 0;
+  for (const r of analizarCss(texto)) {
+    const t = cssATexto([r]);
+    if (total + t.length > LIMITE_CSS) break;
+    salida.push(r);
+    total += t.length + 1;
+  }
+  return cssATexto(salida);
+}
+
+/** Identificador corto del CSS: separa los estilos de una diapositiva de los de otra. */
+export function nsDeCss(css) {
+  let h = 5381;
+  for (let i = 0; i < css.length; i++) h = ((h << 5) + h + css.charCodeAt(i)) | 0;
+  return 'n' + (h >>> 0).toString(36);
 }

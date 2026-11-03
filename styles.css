@@ -469,3 +469,10 @@ body.arrastrando-divisor iframe, body.arrastrando-divisor .ce-ta { pointer-event
 .selbox[data-tipo="tabla"] .h-n, .selbox[data-tipo="tabla"] .h-s { display: none; }
 .selbox[data-tipo="linea"] .h:not(.h-e):not(.h-w):not(.h-rot) { display: none; }
 .sec .fila.botones { flex-wrap: wrap; }
+
+/* Bloque de código: cuadro de texto del panel */
+.cb-ta { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; white-space: pre; overflow: auto; tab-size: 4; }
+.selbox[data-tipo="codigo"] .h-n, .selbox[data-tipo="codigo"] .h-s { display: none; }
+/* Durante «Probar animaciones» el lienzo no se puede editar */
+#stage.probando { cursor: progress; }
+#stage.probando [data-eid] { pointer-events: none; }

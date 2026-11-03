@@ -87,6 +87,12 @@ En la pestaña **Código** del panel derecho:
   En el panel: añadir o quitar filas y columnas junto a la celda activa, encabezado, filas alternas y colores.
 - **Líneas y flechas (Formas ▾)**: línea, flecha, flecha de doble punta y línea punteada. Se alargan con los puntos laterales, se giran con el de arriba,
   y en el panel se cambia grosor, color, puntas y estilo. También hay rombo y hexágono.
+- **Bloques de código (‹/› Código ▾ → Bloque de código)**: ventana de código con colores para Python, JavaScript, Java, C, C++, MATLAB/Octave, R, SQL, Bash, HTML, CSS y JSON.
+  En el panel: lenguaje, tema (oscuro, claro, terminal), números de línea, barra con título, líneas resaltadas (`2, 4-6`) y «mostrar línea por línea al presentar».
+  Solo se guarda el texto; los colores se calculan al mostrarlo. Doble clic para editar; las esquinas cambian el tamaño de la letra.
+- **Animaciones (panel Diseño → Animación)**: cualquier elemento puede tener un *efecto de entrada* (aparecer, subir, bajar, entrar de un lado, zoom, rebote, desenfoque, barrido),
+  un *movimiento continuo* (pulso, flotar, girar, saltar, parpadeo, latido), duración, retraso y empezar *con un clic*: esos elementos aparecen uno a uno con espacio, → o un toque,
+  y ← los vuelve a ocultar. «▶ Probar animaciones» las reproduce en el editor. Respetan «reducir movimiento» del sistema.
 
 ## El código HTML de una diapositiva
 
@@ -105,10 +111,17 @@ En la pestaña **Código** del panel derecho:
 - El orden en el código es el orden de capas (lo último queda encima).
 - `data-eid` identifica el elemento: si lo conservas, el cambio se aplica a ese elemento; si lo quitas, se crea uno nuevo.
 - Se permiten estilos en línea, SVG, tablas, listas, enlaces y `https`/`data:image`. Se eliminan automáticamente
-  `<script>`, `<style>`, `<iframe>`, formularios, eventos (`onclick`…) y URLs `javascript:`. Esto protege a quienes abren
+  `<script>`, `<iframe>`, formularios, eventos (`onclick`…) y URLs `javascript:`. Esto protege a quienes abren
   la presentación de código malicioso pegado por otra persona.
 - Elementos especiales: `data-t="formula"` con `data-tex="…"` (el LaTeX), `data-t="linea"` (línea/flecha) y `data-t="tabla"` (con un `<table>` dentro).
-- Para animaciones o scripts propios, exporta el HTML autónomo y edítalo fuera de la página.
+- Atributos de animación: `data-anim="zoom"` (aparecer, arriba, abajo, izquierda, derecha, zoom, pop, desenfoque, barrido),
+  `data-bucle="flotar"` (pulso, flotar, girar, rebote, parpadeo, latido), `data-disp="clic"`, y `--dur` / `--delay` en el `style` (por ejemplo `--dur:900ms`).
+- Bloque de código: `<div data-t="codigo" data-lang="python" data-tema="oscuro" data-nums="1" data-barra="1" data-titulo="ejemplo.py" data-res="2,4-6"><pre>…tu código…</pre></div>`.
+- **Animaciones propias con CSS**: al principio de la diapositiva puedes escribir un `<style>` con `@keyframes` y reglas de selectores simples
+  (`.clase`, `#id`, `etiqueta`, `[data-t="texto"]`), por ejemplo `.latir { animation: mi-latido 1.2s infinite; }`, y poner `class="latir"` en un elemento.
+  Se permiten solo propiedades visuales seguras; `@import`, `@media`, `url()` externas y `position:fixed` se eliminan. Los nombres de `@keyframes` son globales:
+  usa nombres únicos (no empiecen por `pres-`). Las animaciones solo corren al presentar, en el HTML exportado y con «Probar».
+- No se permiten `<script>` propios (por seguridad); para eso exporta el HTML autónomo y edítalo fuera de la página.
 
 ## Atajos
 

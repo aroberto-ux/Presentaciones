@@ -35,3 +35,118 @@
 .diap [data-t="tabla"] th, .diap [data-t="tabla"] td { border-color: var(--tb-linea, currentColor); overflow-wrap: anywhere; vertical-align: top; text-align: left; }
 .diap [data-t="tabla"] th { background: var(--tb-enc, #1f7a4d); color: var(--tb-encfg, #fff); font-weight: 700; }
 .diap [data-t="tabla"][data-cebra="1"] tr:nth-child(even) td { background: rgba(127, 127, 127, .14); }
+
+/* ── Animaciones ──────────────────────────────────────────────────────────
+   Solo se activan cuando el contenedor tiene la clase .anima (al presentar, en el HTML exportado
+   y en «Probar animaciones»). En el editor y al imprimir todo se ve quieto y visible.
+   Usan las propiedades translate / scale / rotate, que se suman al giro (transform) del elemento. */
+@keyframes pres-aparecer { from { opacity: 0; } }
+@keyframes pres-arriba { from { opacity: 0; translate: 0 70px; } }
+@keyframes pres-abajo { from { opacity: 0; translate: 0 -70px; } }
+@keyframes pres-izquierda { from { opacity: 0; translate: -110px 0; } }
+@keyframes pres-derecha { from { opacity: 0; translate: 110px 0; } }
+@keyframes pres-zoom { from { opacity: 0; scale: .55; } }
+@keyframes pres-pop { 0% { opacity: 0; scale: .3; } 60% { opacity: 1; scale: 1.14; } 80% { scale: .94; } 100% { scale: 1; } }
+@keyframes pres-desenfoque { from { opacity: 0; filter: blur(16px); } }
+@keyframes pres-barrido { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+@keyframes pres-pulso { 50% { scale: 1.08; } }
+@keyframes pres-flotar { 50% { translate: 0 -14px; } }
+@keyframes pres-girar { to { rotate: 360deg; } }
+@keyframes pres-rebote { 0%, 100% { translate: 0 0; } 30% { translate: 0 -26px; } 50% { translate: 0 0; } 65% { translate: 0 -10px; } 80% { translate: 0 0; } }
+@keyframes pres-parpadeo { 50% { opacity: .25; } }
+@keyframes pres-latido { 0%, 100% { scale: 1; } 14% { scale: 1.14; } 28% { scale: 1; } 42% { scale: 1.1; } 70% { scale: 1; } }
+
+.diap [data-anim="aparecer"] { --an-in: pres-aparecer; }
+.diap [data-anim="arriba"] { --an-in: pres-arriba; }
+.diap [data-anim="abajo"] { --an-in: pres-abajo; }
+.diap [data-anim="izquierda"] { --an-in: pres-izquierda; }
+.diap [data-anim="derecha"] { --an-in: pres-derecha; }
+.diap [data-anim="zoom"] { --an-in: pres-zoom; }
+.diap [data-anim="pop"] { --an-in: pres-pop; }
+.diap [data-anim="desenfoque"] { --an-in: pres-desenfoque; }
+.diap [data-anim="barrido"] { --an-in: pres-barrido; }
+.diap [data-bucle="pulso"] { --lp-n: pres-pulso; --lp-t: 1.6s; }
+.diap [data-bucle="flotar"] { --lp-n: pres-flotar; --lp-t: 3s; }
+.diap [data-bucle="girar"] { --lp-n: pres-girar; --lp-t: 6s; }
+.diap [data-bucle="rebote"] { --lp-n: pres-rebote; --lp-t: 1.8s; }
+.diap [data-bucle="parpadeo"] { --lp-n: pres-parpadeo; --lp-t: 1.4s; }
+.diap [data-bucle="latido"] { --lp-n: pres-latido; --lp-t: 1.6s; }
+.diap [data-bucle="girar"] { --lp-f: linear; }
+
+/* Con un clic: el elemento espera oculto hasta que se avanza. */
+.diap.anima [data-disp="clic"]:not(.visto) { visibility: hidden; }
+
+/* Entrada */
+.diap.anima [data-anim]:not([data-bucle]):not([data-disp="clic"]),
+.diap.anima [data-anim]:not([data-bucle])[data-disp="clic"].visto {
+  animation: var(--an-in) var(--dur, 600ms) ease var(--delay, 0ms) backwards;
+}
+/* Movimiento continuo (empieza al terminar la entrada, si la hay) */
+.diap.anima [data-bucle]:not([data-anim]):not([data-disp="clic"]),
+.diap.anima [data-bucle]:not([data-anim])[data-disp="clic"].visto {
+  animation: var(--lp-n) var(--lp-t, 1.6s) var(--lp-f, ease-in-out) var(--delay, 0ms) infinite;
+}
+/* Entrada + movimiento continuo */
+.diap.anima [data-anim][data-bucle]:not([data-disp="clic"]),
+.diap.anima [data-anim][data-bucle][data-disp="clic"].visto {
+  animation: var(--an-in) var(--dur, 600ms) ease var(--delay, 0ms) backwards,
+             var(--lp-n) var(--lp-t, 1.6s) var(--lp-f, ease-in-out) calc(var(--dur, 600ms) + var(--delay, 0ms)) infinite;
+}
+/* Con un clic y sin efecto elegido: aparece suavemente */
+.diap.anima [data-disp="clic"].visto:not([data-anim]):not([data-bucle]) { animation: pres-aparecer .4s ease backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .diap.anima [data-bucle] { animation-iteration-count: 1 !important; }
+}
+
+/* ── Bloque de código ──────────────────────────────────────────────────── */
+.diap [data-t="codigo"] {
+  --cb-bg: #1e1e1e; --cb-fg: #d4d4d4; --cb-bar: #2d2d2d; --cb-kw: #569cd6; --cb-st: #ce9178; --cb-nm: #b5cea8;
+  --cb-cm: #6a9955; --cb-fn: #dcdcaa; --cb-ty: #4ec9b0; --cb-at: #9cdcfe; --cb-pn: #9da5b4; --cb-dc: #c586c0; --cb-res: rgba(255, 255, 255, .1);
+  background: var(--cb-bg); color: var(--cb-fg); border-radius: 12px; overflow: hidden;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, 'Courier New', monospace;
+  line-height: 1.55; tab-size: 4; box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+}
+.diap [data-t="codigo"][data-tema="claro"] {
+  --cb-bg: #f6f8fa; --cb-fg: #24292f; --cb-bar: #e6e9ee; --cb-kw: #cf222e; --cb-st: #0a3069; --cb-nm: #0550ae;
+  --cb-cm: #6e7781; --cb-fn: #8250df; --cb-ty: #953800; --cb-at: #116329; --cb-pn: #57606a; --cb-dc: #953800; --cb-res: rgba(255, 213, 0, .22);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .12), inset 0 0 0 1px #d0d7de;
+}
+.diap [data-t="codigo"][data-tema="terminal"] {
+  --cb-bg: #0b0f0c; --cb-fg: #b7f7c6; --cb-bar: #16201a; --cb-kw: #5cf08d; --cb-st: #f2e15c; --cb-nm: #6bd6ff;
+  --cb-cm: #4b7a58; --cb-fn: #9cffb8; --cb-ty: #7fe6c4; --cb-at: #6bd6ff; --cb-pn: #7fa88a; --cb-dc: #ff9cd0; --cb-res: rgba(92, 240, 141, .13);
+}
+.diap [data-t="codigo"] .cb-barra { display: flex; align-items: center; gap: .4em; padding: .55em .9em; background: var(--cb-bar); font-size: .62em; line-height: 1; }
+.diap [data-t="codigo"] .cb-barra i { width: .95em; height: .95em; border-radius: 50%; display: block; }
+.diap [data-t="codigo"] .cb-d1 { background: #ff5f57; }
+.diap [data-t="codigo"] .cb-d2 { background: #febc2e; }
+.diap [data-t="codigo"] .cb-d3 { background: #28c840; }
+.diap [data-t="codigo"] .cb-tit { margin-left: .8em; opacity: .7; font-family: 'Inter', system-ui, sans-serif; }
+.diap [data-t="codigo"] .cb-cuerpo { padding: .8em 0; }
+.diap [data-t="codigo"] .cb-l { display: flex; min-height: 1.55em; padding: 0 1.1em 0 0; }
+.diap [data-t="codigo"] .cb-l:not(:has(.cb-n)) { padding-left: 1.1em; }
+.diap [data-t="codigo"] .cb-res { background: var(--cb-res); box-shadow: inset 3px 0 0 var(--cb-kw); }
+.diap [data-t="codigo"] .cb-n { flex: none; width: 2.6em; padding-right: .9em; text-align: right; opacity: .4; user-select: none; }
+.diap [data-t="codigo"] .cb-t { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.diap [data-t="codigo"] .cb-kw, .diap [data-t="codigo"] .cb-tg { color: var(--cb-kw); }
+.diap [data-t="codigo"] .cb-st { color: var(--cb-st); }
+.diap [data-t="codigo"] .cb-nm { color: var(--cb-nm); }
+.diap [data-t="codigo"] .cb-cm { color: var(--cb-cm); font-style: italic; }
+.diap [data-t="codigo"] .cb-fn { color: var(--cb-fn); }
+.diap [data-t="codigo"] .cb-ty { color: var(--cb-ty); }
+.diap [data-t="codigo"] .cb-at, .diap [data-t="codigo"] .cb-vr { color: var(--cb-at); }
+.diap [data-t="codigo"] .cb-pn, .diap [data-t="codigo"] .cb-op { color: var(--cb-pn); }
+.diap [data-t="codigo"] .cb-dc { color: var(--cb-dc); }
+/* Aparecer línea por línea (al presentar) */
+@keyframes pres-linea { from { opacity: 0; translate: -14px 0; } }
+.diap.anima [data-t="codigo"][data-lin-anim="1"]:not([data-disp="clic"]) .cb-l,
+.diap.anima [data-t="codigo"][data-lin-anim="1"][data-disp="clic"].visto .cb-l {
+  animation: pres-linea .3s ease backwards; animation-delay: calc(var(--delay, 0ms) + var(--i) * 170ms);
+}
+.diap [data-t="estilo"] { display: none !important; }
+/* Repintado por un cambio ajeno mientras se presenta: no se repiten las entradas */
+.diap.anima.repinta [data-anim]:not([data-bucle]) { animation: none !important; }
+.diap.anima.repinta [data-anim][data-bucle] { animation: var(--lp-n) var(--lp-t, 1.6s) var(--lp-f, ease-in-out) 0s infinite !important; }
+.diap.anima.repinta [data-t="codigo"][data-lin-anim="1"] .cb-l { animation: none !important; }
+.diap.anima.repinta [data-disp="clic"].visto:not([data-bucle]) { animation: none !important; }

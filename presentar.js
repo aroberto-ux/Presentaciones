@@ -1,8 +1,8 @@
 // Modo presentar: pantalla completa, solo lectura, actualizado en vivo.
 
-import { S, E } from './estado.js?v=2026.11.02-a';
-import { pintarDiapositiva } from './slides.js?v=2026.11.02-a';
-import { aviso } from './ui.js?v=2026.11.02-a';
+import { S, E } from './estado.js?v=2026.11.02-b';
+import { pintarDiapositiva } from './slides.js?v=2026.11.02-b';
+import { aviso } from './ui.js?v=2026.11.02-b';
 
 let activo = false;
 let cableado = false;
@@ -11,6 +11,14 @@ let subPres = null;
 let pid = null;
 let quietoT = null;
 let hashPendiente = 0;
+let paso = 0; // elementos «con un clic» ya mostrados en la diapositiva actual
+
+const pendientes = () => Array.from(E.presDiap.querySelectorAll('[data-disp="clic"]'));
+function aplicarPasos() {
+  const l = pendientes();
+  paso = Math.max(0, Math.min(paso, l.length));
+  l.forEach((n, i) => n.classList.toggle('visto', i < paso));
+}
 
 function escalar() {
   if (!activo) return;
@@ -21,6 +29,10 @@ function escalar() {
 function pintar(animar = false) {
   const sl = S.slides[S.idx];
   pintarDiapositiva(E.presDiap, sl);
+  E.presDiap.classList.add('anima');
+  // Si solo se repinta por un cambio de otra persona, las entradas no se repiten.
+  E.presDiap.classList.toggle('repinta', !animar);
+  aplicarPasos();
   E.presCont.textContent = S.slides.length ? `${S.idx + 1} / ${S.slides.length}` : '';
   E.presProgreso.style.width = S.slides.length ? `${((S.idx + 1) / S.slides.length) * 100}%` : '0';
   E.presNotas.textContent = (sl && sl.notas) || '(Sin notas en esta diapositiva)';
@@ -29,11 +41,22 @@ function pintar(animar = false) {
   try { history.replaceState(null, '', `#presentar/${pid}/${S.idx + 1}`); } catch { /* ignorar */ }
 }
 
-function ir(i) {
+function ir(i, atras = false) {
   const n = Math.max(0, Math.min(S.slides.length - 1, i));
   if (n === S.idx) return;
   S.idx = n;
+  paso = atras ? Infinity : 0;
   pintar(true);
+}
+
+/** Avanza un paso: primero muestra lo que espera un clic y, cuando no queda nada, cambia de diapositiva. */
+function avanzar() {
+  if (paso < pendientes().length) { paso++; aplicarPasos(); }
+  else ir(S.idx + 1);
+}
+function retroceder() {
+  if (paso > 0) { paso--; aplicarPasos(); }
+  else ir(S.idx - 1, true);
 }
 
 function despertar() {
@@ -55,8 +78,8 @@ function salir() {
 function teclas(e) {
   if (!activo) return;
   const k = e.key;
-  if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); ir(S.idx + 1); }
-  else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); ir(S.idx - 1); }
+  if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); avanzar(); }
+  else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); retroceder(); }
   else if (k === 'Home') ir(0);
   else if (k === 'End') ir(S.slides.length - 1);
   else if (k === 'f' || k === 'F') pantallaCompleta();
@@ -74,14 +97,14 @@ function preparar() {
   E.presDiap.addEventListener('click', (e) => {
     if (e.target.closest && e.target.closest('a')) return;
     const r = E.vistaPresentar.getBoundingClientRect();
-    ir(e.clientX - r.left < r.width * 0.3 ? S.idx - 1 : S.idx + 1);
+    if (e.clientX - r.left < r.width * 0.3) retroceder(); else avanzar();
   });
   E.presDiap.addEventListener('dragstart', (e) => e.preventDefault());
   E.vistaPresentar.addEventListener('click', (e) => {
-    if (e.target === E.vistaPresentar) ir(S.idx + 1);
+    if (e.target === E.vistaPresentar) avanzar();
   });
-  E.presPrev.addEventListener('click', () => ir(S.idx - 1));
-  E.presSig.addEventListener('click', () => ir(S.idx + 1));
+  E.presPrev.addEventListener('click', retroceder);
+  E.presSig.addEventListener('click', avanzar);
   E.presFull.addEventListener('click', pantallaCompleta);
   E.presSalir.addEventListener('click', salir);
 
@@ -92,7 +115,7 @@ function preparar() {
     if (x0 == null) return;
     const dx = e.changedTouches[0].clientX - x0;
     x0 = null;
-    if (Math.abs(dx) > 50) ir(S.idx + (dx < 0 ? 1 : -1));
+    if (Math.abs(dx) > 50) if (dx < 0) avanzar(); else retroceder();
   }, { passive: true });
 }
 
@@ -103,7 +126,7 @@ export function entrarPresentar(id, n) {
   if (activo) salirPresentar();
   activo = true;
   pid = id;
-  S.slides = []; S.idx = idx;
+  S.slides = []; S.idx = idx; paso = 0;
   document.body.classList.add('modo-presentar');
   E.vistaPresentar.hidden = false;
   E.presNotas.hidden = true;

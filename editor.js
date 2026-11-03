@@ -1,21 +1,22 @@
 // Editor: lienzo visual tipo Canva + editor de código + colaboración en vivo.
 
-import { S, E } from './estado.js?v=2026.11.02-a';
-import { h, $, $$, aviso, modal, pedir, confirmar, abrirMenu, cerrarMenu, hayModal, copiarTexto, iniciales } from './ui.js?v=2026.11.02-a';
+import { S, E } from './estado.js?v=2026.11.02-b';
+import { h, $, $$, aviso, modal, pedir, confirmar, abrirMenu, cerrarMenu, hayModal, copiarTexto, iniciales } from './ui.js?v=2026.11.02-b';
 import {
   ANCHO, ALTO, LIMITE_BYTES, TEMAS, LAYOUTS, r1, nuevoId, elementoNuevo, htmlImagen, htmlTexto,
   diapositivaDesdeLayout, reconciliar, pintarDiapositiva, aplicarFondo, htmlDeNodo, limpiarHtmlElemento,
   leerCaja, fijarRotacion, idsOrdenados, serializarCodigo, serializarElemento, parsearCodigo, parsearElemento,
-  pesoDiapositiva,
-} from './slides.js?v=2026.11.02-a';
-import { nodoDesdeHTML } from './sanitize.js?v=2026.11.02-a';
-import { descargarHTML, descargarJSON, imprimir } from './exportar.js?v=2026.11.02-a';
-import { crearEditorCodigo, crearEditorPlano } from './codigo-editor.js?v=2026.11.02-a';
-import { pintarFormula, errorTex, texAHtml, EJEMPLOS, PALETA } from './formula.js?v=2026.11.02-a';
-import { interiorLinea, contraste } from './slides.js?v=2026.11.02-a';
-import { crearBarraTexto } from './formato.js?v=2026.11.02-a';
-import { agregarFila, quitarFila, agregarColumna, quitarColumna, alternarEncabezado, tieneEncabezado, celdaVecina } from './tabla.js?v=2026.11.02-a';
-import { iniciarPaneles, alternarModoCodigo, pestanaActiva, aplicar as aplicarPaneles } from './paneles.js?v=2026.11.02-a';
+  pesoDiapositiva, esEstilo,
+} from './slides.js?v=2026.11.02-b';
+import { nodoDesdeHTML } from './sanitize.js?v=2026.11.02-b';
+import { descargarHTML, descargarJSON, imprimir } from './exportar.js?v=2026.11.02-b';
+import { crearEditorCodigo, crearEditorPlano } from './codigo-editor.js?v=2026.11.02-b';
+import { pintarFormula, errorTex, texAHtml, EJEMPLOS, PALETA } from './formula.js?v=2026.11.02-b';
+import { interiorLinea, contraste } from './slides.js?v=2026.11.02-b';
+import { crearBarraTexto } from './formato.js?v=2026.11.02-b';
+import { LENGUAJES, TEMAS_CODIGO, pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.02-b';
+import { agregarFila, quitarFila, agregarColumna, quitarColumna, alternarEncabezado, tieneEncabezado, celdaVecina } from './tabla.js?v=2026.11.02-b';
+import { iniciarPaneles, alternarModoCodigo, pestanaActiva, aplicar as aplicarPaneles } from './paneles.js?v=2026.11.02-b';
 
 let enEditor = false;
 let cableado = false;
@@ -575,7 +576,7 @@ function duplicarSel() {
 function ordenCapas(modo) {
   const sl = slideActual(), id = S.sel;
   if (!sl || !id) return;
-  const ids = idsOrdenados(sl);
+  const ids = idsOrdenados(sl).filter((x) => !esEstilo(sl.el[x].h)); // el elemento de estilo es invisible
   const i = ids.indexOf(id);
   let orden;
   if (modo === 'frente') orden = [...ids.filter((x) => x !== id), id];
@@ -831,7 +832,7 @@ function alPresionarLienzo(e) {
 }
 
 function cajasOtros(id) {
-  return Array.from(E.stage.children).filter((c) => c.dataset && c.dataset.eid && c.dataset.eid !== id).map(leerCaja);
+  return Array.from(E.stage.children).filter((c) => c.dataset && c.dataset.eid && c.dataset.eid !== id && c.dataset.t !== 'estilo').map(leerCaja);
 }
 
 function ajustarSnap(x, y, w, hh, otros) {
@@ -903,7 +904,7 @@ function iniciarRedimension(e, dir) {
       esc = esquina ? Math.max(w / c0.w, hh / c0.h) : (hx !== 0 ? w / c0.w : hh / c0.h);
       esc = Math.max(esc, 24 / c0.w, 12 / c0.h);
       w = c0.w * esc; hh = c0.h * esc;
-    } else if (esquina && (tipo === 'texto' || tipo === 'tabla' || tipo === 'img' || ev.shiftKey)) {
+    } else if (esquina && (tipo === 'texto' || tipo === 'tabla' || tipo === 'codigo' || tipo === 'img' || ev.shiftKey)) {
       esc = Math.max(w / c0.w, hh / c0.h);
       esc = Math.max(esc, 24 / c0.w);
       w = c0.w * esc; hh = c0.h * esc;
@@ -921,7 +922,7 @@ function iniciarRedimension(e, dir) {
     if (tipo === 'formula') {
       n.style.fontSize = r1(Math.max(8, fs0 * esc)) + 'px'; // el ancho y el alto salen solos del tamaño de letra
     } else if (hx !== 0) n.style.width = r1(w) + 'px';
-    if (tipo === 'formula') { /* ya escalada */ } else if (tipo === 'texto' || tipo === 'tabla') {
+    if (tipo === 'formula') { /* ya escalada */ } else if (tipo === 'texto' || tipo === 'tabla' || tipo === 'codigo') {
       if (esquina) n.style.fontSize = r1(Math.max(8, fs0 * esc)) + 'px';
     } else if (hy !== 0 || (esquina) || tieneAlto) {
       if (hy !== 0 || tieneAlto) n.style.height = r1(hh) + 'px';
@@ -988,6 +989,14 @@ function editarFormula() {
   if (P.tex) { P.tex.focus(); P.tex.select(); }
 }
 
+/** Lleva el foco al cuadro de texto del bloque de código seleccionado. */
+function editarCodigoBloque() {
+  cambiarTab('diseno');
+  E.panelDer.classList.add('abierto');
+  actualizarPanel();
+  if (P.cbTa) P.cbTa.focus();
+}
+
 function alDobleClic(e) {
   const n = e.target.closest ? e.target.closest('[data-eid]') : null;
   if (!n) return;
@@ -996,6 +1005,7 @@ function alDobleClic(e) {
   if (tipo === 'img') { elegirImagen(n.dataset.eid); return; }
   if (tipo === 'html') { seleccionar(n.dataset.eid); cambiarTab('codigo'); E.alcance.value = 'elemento'; sincronizarCodigo(true); return; }
   if (tipo === 'formula') { seleccionar(n.dataset.eid); editarFormula(); return; }
+  if (tipo === 'codigo') { seleccionar(n.dataset.eid); editarCodigoBloque(); return; }
   seleccionar(n.dataset.eid);
   iniciarEdicion(n, false);
   if (tipo === 'tabla') colocarCursorEn(e.clientX, e.clientY, n);
@@ -1338,10 +1348,118 @@ function seccionTabla() {
     h('p', { class: 'vacio-panel' }, 'Doble clic para escribir en una celda. Con Tab pasas a la siguiente (y al final se crea otra fila). Las filas y columnas se añaden junto a la celda activa.'));
 }
 
+/** Cambia atributos del elemento seleccionado como un solo paso de deshacer. */
+function editarAtributos(fn, { pintar = false } = {}) {
+  const n = nodoSel();
+  if (!n) return;
+  const id = n.dataset.eid, antes = copiaEl(id);
+  fn(n);
+  if (pintar) pintarCodigo(n);
+  terminarGesto(id, antes);
+  actualizarOverlay();
+}
+
+function attr(n, k, v) { if (v == null || v === '') n.removeAttribute(k); else n.setAttribute(k, v); }
+
+function seccionCodigo(n) {
+  const ta = h('textarea', { class: 'tex-ta cb-ta', rows: 9, spellcheck: 'false', wrap: 'off', 'aria-label': 'Código', placeholder: 'Pega o escribe el código aquí' });
+  let antes = null, id = null;
+  const abrir = () => {
+    const nn = nodoSel();
+    if (!nn) return null;
+    if (!antes) { id = nn.dataset.eid; antes = copiaEl(id); S.ocupado.add(id); }
+    return nn;
+  };
+  const cerrar = () => { if (!antes) return; S.ocupado.delete(id); terminarGesto(id, antes); antes = null; id = null; };
+  ta.addEventListener('input', () => {
+    const nn = abrir();
+    if (!nn) return;
+    pintarCodigo(nn, ta.value);
+    actualizarOverlay();
+    empujarEl(id);
+  });
+  ta.addEventListener('blur', cerrar);
+  ta.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') { ev.preventDefault(); ta.blur(); }
+    else if (ev.key === 'Tab' && !ev.shiftKey && !ev.ctrlKey && !ev.altKey) {
+      ev.preventDefault();
+      if (!document.execCommand('insertText', false, '    ')) { ta.setRangeText('    ', ta.selectionStart, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input')); }
+    }
+  });
+  // El texto se guarda tal cual: el código pegado no se interpreta nunca como HTML.
+  const lang = h('select', { 'aria-label': 'Lenguaje' }, LENGUAJES.map(([v, t]) => h('option', { value: v }, t)));
+  const tema = h('select', { 'aria-label': 'Tema de colores' }, TEMAS_CODIGO.map(([v, t]) => h('option', { value: v }, t)));
+  lang.addEventListener('change', () => editarAtributos((nn) => attr(nn, 'data-lang', lang.value), { pintar: true }));
+  tema.addEventListener('change', () => editarAtributos((nn) => attr(nn, 'data-tema', tema.value)));
+  const casilla = (clave, atributo, texto) => {
+    const c = h('input', { type: 'checkbox' });
+    c.addEventListener('change', () => editarAtributos((nn) => attr(nn, atributo, c.checked ? '1' : null), { pintar: true }));
+    P[clave] = c;
+    return h('label', { class: 'fila', style: { alignItems: 'center', gap: '8px' } }, c, texto);
+  };
+  const tit = h('input', { type: 'text', maxlength: 60, placeholder: 'ejemplo.py', 'aria-label': 'Título de la ventana' });
+  tit.addEventListener('change', () => editarAtributos((nn) => attr(nn, 'data-titulo', tit.value.trim()), { pintar: true }));
+  const res = h('input', { type: 'text', maxlength: 40, placeholder: 'Ej.: 2, 4-6', 'aria-label': 'Líneas resaltadas' });
+  res.addEventListener('change', () => {
+    const limpio = res.value.replace(/[^0-9,\- ]/g, '').trim();
+    editarAtributos((nn) => attr(nn, 'data-res', limpio), { pintar: true });
+  });
+  P.cbTa = ta; P.cbLang = lang; P.cbTema = tema; P.cbTit = tit; P.cbRes = res;
+  return seccion('Bloque de código',
+    ta,
+    h('div', { class: 'fila' }, h('label', { class: 'num' }, 'Lenguaje', lang), h('label', { class: 'num' }, 'Tema', tema)),
+    casilla('cbNums', 'data-nums', 'Números de línea'),
+    casilla('cbBarra', 'data-barra', 'Barra de ventana con título'),
+    h('div', { class: 'fila' }, h('label', { class: 'num' }, 'Título', tit)),
+    h('div', { class: 'fila' }, h('label', { class: 'num' }, 'Líneas resaltadas', res)),
+    casilla('cbLin', 'data-lin-anim', 'Mostrar línea por línea al presentar'),
+    h('p', { class: 'vacio-panel' }, 'Doble clic en el bloque para editar el código. Las esquinas cambian el tamaño de la letra; los lados, el ancho.'));
+}
+
+const ENTRADAS_UI = [['', 'Ninguna'], ['aparecer', 'Aparecer'], ['arriba', 'Subir'], ['abajo', 'Bajar'], ['izquierda', 'Entrar desde la izquierda'],
+  ['derecha', 'Entrar desde la derecha'], ['zoom', 'Zoom'], ['pop', 'Rebote al aparecer'], ['desenfoque', 'Desenfoque'], ['barrido', 'Barrido (revelar)']];
+const BUCLES_UI = [['', 'Ninguno'], ['pulso', 'Pulso'], ['flotar', 'Flotar'], ['girar', 'Girar'], ['rebote', 'Saltar'], ['parpadeo', 'Parpadeo'], ['latido', 'Latido']];
+
+let pruebaT = null;
+/** Reproduce las animaciones de la diapositiva en el propio editor (sin guardar nada). */
+function probarAnimaciones() {
+  detenerPrueba();
+  const clics = Array.from(E.stage.querySelectorAll('[data-disp="clic"]'));
+  E.stage.classList.add('anima', 'probando');
+  clics.forEach((c, i) => setTimeout(() => { if (E.stage.classList.contains('probando')) c.classList.add('visto'); }, 700 + i * 900));
+  pruebaT = setTimeout(detenerPrueba, 4000 + clics.length * 900);
+  document.addEventListener('pointerdown', detenerPrueba, { once: true, capture: true });
+}
+function detenerPrueba() {
+  clearTimeout(pruebaT); pruebaT = null;
+  E.stage.classList.remove('anima', 'probando');
+  E.stage.querySelectorAll('.visto').forEach((n) => n.classList.remove('visto'));
+}
+
+function seccionAnimacion(n) {
+  const sel = (opts, etq) => h('select', { 'aria-label': etq }, opts.map(([v, t]) => h('option', { value: v }, t)));
+  const ent = sel(ENTRADAS_UI, 'Efecto de entrada');
+  const bucle = sel(BUCLES_UI, 'Movimiento continuo');
+  const disp = sel([['', 'Automáticamente'], ['clic', 'Con un clic o tecla']], 'Cuándo empieza');
+  ent.addEventListener('change', () => editarAtributos((nn) => attr(nn, 'data-anim', ent.value)));
+  bucle.addEventListener('change', () => editarAtributos((nn) => attr(nn, 'data-bucle', bucle.value)));
+  disp.addEventListener('change', () => editarAtributos((nn) => attr(nn, 'data-disp', disp.value)));
+  const tiempo = (v, k) => editarAtributos((nn) => { if (v == null) nn.style.removeProperty(k); else nn.style.setProperty(k, `${Math.max(0, Math.min(10000, Math.round(v)))}ms`); });
+  P.anEnt = ent; P.anBucle = bucle; P.anDisp = disp;
+  return seccion('Animación',
+    h('div', { class: 'fila' }, h('label', { class: 'num' }, 'Entrada', ent)),
+    h('div', { class: 'fila' }, h('label', { class: 'num' }, 'Movimiento continuo', bucle)),
+    h('div', { class: 'fila' }, h('label', { class: 'num' }, 'Empieza', disp)),
+    h('div', { class: 'fila' }, campoNum('Duración ms', 'anDur', (v) => tiempo(v, '--dur'), { min: 100, max: 10000, paso: 100 }),
+      campoNum('Retraso ms', 'anRet', (v) => tiempo(v, '--delay'), { min: 0, max: 10000, paso: 100 })),
+    h('div', { class: 'fila' }, botonCorto('▶ Probar animaciones', probarAnimaciones, { titulo: 'Reproduce las animaciones de esta diapositiva' })),
+    h('p', { class: 'vacio-panel' }, 'Solo se ven al presentar (o con «Probar»). Los elementos «con un clic» aparecen uno a uno con la barra espaciadora o la flecha →.'));
+}
+
 function panelElemento(n) {
   P = {};
   const tipo = n.dataset.t || 'html';
-  const nombres = { texto: 'Texto', forma: 'Forma', img: 'Imagen', html: 'Bloque HTML', formula: 'Fórmula', linea: 'Línea / flecha', tabla: 'Tabla' };
+  const nombres = { texto: 'Texto', forma: 'Forma', img: 'Imagen', html: 'Bloque HTML', formula: 'Fórmula', linea: 'Línea / flecha', tabla: 'Tabla', codigo: 'Bloque de código' };
   const raiz = h('div');
   raiz.append(h('div', { class: 'tipo-sel' }, nombres[tipo] || 'Elemento',
     h('span', { class: 'grupo' }, botonCorto('⧉', duplicarSel, { titulo: 'Duplicar (Ctrl+D)' }), botonCorto('🗑', eliminarSel, { titulo: 'Eliminar (Supr)', clase: 'peligro' }))));
@@ -1349,13 +1467,15 @@ function panelElemento(n) {
   if (tipo === 'formula') raiz.append(seccionFormula(n));
   if (tipo === 'linea') raiz.append(seccionLinea(n));
   if (tipo === 'tabla') raiz.append(seccionTabla(n));
+  if (tipo === 'codigo') raiz.append(seccionCodigo(n));
+  raiz.append(seccionAnimacion(n));
 
   raiz.append(seccion('Posición y tamaño',
     h('div', { class: 'fila' }, campoNum('X', 'x', (v) => aplicarCaja('x', v)), campoNum('Y', 'y', (v) => aplicarCaja('y', v))),
     h('div', { class: 'fila' }, campoNum('Ancho', 'w', (v) => aplicarCaja('w', v), { min: 8 }), campoNum('Alto', 'h', (v) => aplicarCaja('h', v), { min: 8 }),
       campoNum('Giro °', 'r', (v) => aplicarCaja('r', v)))));
 
-  if (tipo !== 'img' && tipo !== 'linea') {
+  if (tipo !== 'img' && tipo !== 'linea' && tipo !== 'codigo') {
     const fuente = h('select', { 'aria-label': 'Fuente' }, h('option', { value: '' }, 'Personalizada'), FUENTES.map(([nom, val]) => h('option', { value: val }, nom)));
     fuente.addEventListener('change', () => { if (fuente.value) estilo('font-family', fuente.value); });
     P.fuente = fuente;
@@ -1462,6 +1582,8 @@ function panelSlide() {
       for (const s of S.slides) if (s.id !== sl.id && s.bg !== sl.bg) { s.bg = sl.bg; S.store.actualizarDiapositiva(S.pid, s.id, { bg: sl.bg }); programarMiniatura(s.id); }
       aviso('Fondo aplicado a todas las diapositivas.', 'ok');
     }))));
+  raiz.append(seccion('Animaciones', h('div', { class: 'fila' }, botonCorto('▶ Probar animaciones', probarAnimaciones)),
+    h('p', { class: 'vacio-panel' }, 'Selecciona un elemento para darle un efecto de entrada o un movimiento continuo.')));
   raiz.append(seccion('Consejos', h('p', { class: 'vacio-panel' },
     'Haz clic en un elemento para moverlo, redimensionarlo o girarlo. Doble clic en un texto para escribir. ' +
     'Con Mayús al mover se bloquea el eje; con Alt se desactiva el imán. En «Código» puedes editar el HTML.')));
@@ -1492,6 +1614,26 @@ function sincronizarValores() {
     const t = n.getAttribute('data-tex') || '';
     if (document.activeElement !== P.tex && P.tex.value !== t) { P.tex.value = t; P.texErr.textContent = errorTex(t, n.getAttribute('data-d') === '1'); }
     if (P.texDisp) P.texDisp.checked = n.getAttribute('data-d') === '1';
+  }
+  if (P.cbTa) {
+    const t = textoDeCodigo(n);
+    if (document.activeElement !== P.cbTa && P.cbTa.value !== t) P.cbTa.value = t;
+    P.cbLang.value = n.getAttribute('data-lang') || 'texto';
+    P.cbTema.value = n.getAttribute('data-tema') || 'oscuro';
+    P.cbNums.checked = n.getAttribute('data-nums') === '1';
+    P.cbBarra.checked = n.getAttribute('data-barra') === '1';
+    P.cbLin.checked = n.getAttribute('data-lin-anim') === '1';
+    if (document.activeElement !== P.cbTit) P.cbTit.value = n.getAttribute('data-titulo') || '';
+    if (document.activeElement !== P.cbRes) P.cbRes.value = n.getAttribute('data-res') || '';
+    P.cbTit.disabled = !P.cbBarra.checked;
+  }
+  if (P.anEnt) {
+    P.anEnt.value = n.getAttribute('data-anim') || '';
+    P.anBucle.value = n.getAttribute('data-bucle') || '';
+    P.anDisp.value = n.getAttribute('data-disp') === 'clic' ? 'clic' : '';
+    const num = (v) => { const m = /^(-?[\d.]+)ms$/.exec(String(v || '').trim()); return m ? Number(m[1]) : null; };
+    if (document.activeElement !== P.anDur) setVal(P.anDur, num(n.style.getPropertyValue('--dur')) ?? 600);
+    if (document.activeElement !== P.anRet) setVal(P.anRet, num(n.style.getPropertyValue('--delay')) ?? 0);
   }
   if (P.lGrosor) {
     setVal(P.lGrosor, n.getAttribute('data-g') || 6);
@@ -1786,6 +1928,13 @@ function menuFormas(ancla) {
     f('linea-punteada', 'Línea punteada', '┄')]);
 }
 
+function menuCodigo(ancla) {
+  abrirMenu(ancla, [
+    { texto: 'Bloque de código con colores', icono: '⌨', fn: () => agregarEl(elementoNuevo('codigo'), { editar: false }) },
+    { texto: 'Bloque HTML (código a mano)', icono: '‹/›', fn: () => agregarEl(elementoNuevo('html'), { codigo: true }) },
+  ]);
+}
+
 function menuTabla(ancla) {
   const f = (filas, cols) => ({ texto: `${filas} filas × ${cols} columnas`, icono: '▦', fn: () => agregarEl(elementoNuevo(`tabla:${filas}x${cols}`, tema()), { editar: true }) });
   abrirMenu(ancla, [f(2, 2), f(3, 3), f(4, 3), f(5, 4), f(6, 5)]);
@@ -1867,7 +2016,7 @@ function alTeclear(e) {
     case 'ArrowDown': if (S.sel) { e.preventDefault(); empujarTeclado(0, paso); } break;
     case 'PageUp': e.preventDefault(); irRelativo(-1); break;
     case 'PageDown': e.preventDefault(); irRelativo(1); break;
-    case 'Enter': if (S.sel) { const n = nodoSel(); if (n && n.dataset.t === 'formula') { e.preventDefault(); editarFormula(); } else if (n && n.dataset.t !== 'img' && n.dataset.t !== 'html') { e.preventDefault(); iniciarEdicion(n, false); } } break;
+    case 'Enter': if (S.sel) { const n = nodoSel(); if (n && n.dataset.t === 'formula') { e.preventDefault(); editarFormula(); } else if (n && n.dataset.t === 'codigo') { e.preventDefault(); editarCodigoBloque(); } else if (n && n.dataset.t !== 'img' && n.dataset.t !== 'html') { e.preventDefault(); iniciarEdicion(n, false); } } break;
     default:
   }
 }
@@ -1926,7 +2075,7 @@ function prepararUnaVez() {
   $('#ins-texto').addEventListener('click', (e) => menuTexto(e.currentTarget));
   $('#ins-forma').addEventListener('click', (e) => menuFormas(e.currentTarget));
   $('#ins-imagen').addEventListener('click', (e) => menuImagen(e.currentTarget));
-  $('#ins-html').addEventListener('click', () => agregarEl(elementoNuevo('html'), { codigo: true }));
+  $('#ins-html').addEventListener('click', (e) => menuCodigo(e.currentTarget));
   $('#ins-tabla').addEventListener('click', (e) => menuTabla(e.currentTarget));
   $('#ins-formula').addEventListener('click', () => agregarEl(elementoNuevo('formula', tema()), { formula: true }));
   E.zoom.addEventListener('change', () => { S.zoom = E.zoom.value; ajustarEscala(); actualizarOverlay(); });

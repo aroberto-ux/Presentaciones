@@ -1,14 +1,14 @@
 // Exportar: HTML autónomo, copia de seguridad JSON e impresión / PDF.
 
-import { S } from './estado.js?v=2026.11.02-a';
-import { aviso, descargar, nombreArchivo, h, $ } from './ui.js?v=2026.11.02-a';
-import { htmlAutonomo, pintarDiapositiva } from './slides.js?v=2026.11.02-a';
+import { S } from './estado.js?v=2026.11.02-b';
+import { aviso, descargar, nombreArchivo, h, $ } from './ui.js?v=2026.11.02-b';
+import { htmlAutonomo, pintarDiapositiva } from './slides.js?v=2026.11.02-b';
 
 let cssCache = null;
 
 async function cssDiapositiva() {
   if (cssCache) return cssCache;
-  const r = await fetch('slide.css?v=2026.11.02-a');
+  const r = await fetch('slide.css?v=2026.11.02-b');
   cssCache = await r.text();
   return cssCache;
 }
@@ -27,7 +27,7 @@ let katexCache = null;
 /** CSS de KaTeX con las fuentes incrustadas, para que las fórmulas se vean sin conexión. */
 async function cssKatex() {
   if (katexCache) return katexCache;
-  let css = await (await fetch('vendor/katex/katex.min.css?v=2026.11.02-a')).text();
+  let css = await (await fetch('vendor/katex/katex.min.css?v=2026.11.02-b')).text();
   const re = /url\((fonts\/[^)]+\.woff2)\)/g;
   const urls = [...new Set([...css.matchAll(re)].map((m) => m[1]))];
   const datos = {};

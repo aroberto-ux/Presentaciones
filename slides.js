@@ -4,8 +4,9 @@
 //   { orden, bg: 'css del fondo', notas: '', el: { <id>: { z: 1, h: '<div …>…</div>' } } }
 // Cada elemento es un trozo de HTML con posición absoluta sobre un lienzo de 1280×720.
 
-import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo, dividirDecls } from './sanitize.js?v=2026.11.02-a';
-import { pintarFormula } from './formula.js?v=2026.11.02-a';
+import { nodoDesdeHTML, limpiarRaiz, declaracionSegura, limpiarEstilo, dividirDecls, analizarCss, cssATexto, cssBonito, limpiarCss, nsDeCss } from './sanitize.js?v=2026.11.02-b';
+import { pintarFormula } from './formula.js?v=2026.11.02-b';
+import { pintarCodigo, textoDeCodigo } from './resaltar.js?v=2026.11.02-b';
 
 export const ANCHO = 1280;
 export const ALTO = 720;
@@ -111,6 +112,23 @@ export function htmlTabla(filas, cols, t = TEMAS.claro, x = 120, y = 200) {
     `--tb-enc:${ac};--tb-encfg:${contraste(ac)}"><table style="width:100%"><tbody>${trs}</tbody></table></div>`;
 }
 
+const escAttrHtml = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+const escTexto = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** CSS propio de la diapositiva: un elemento invisible con las reglas ya filtradas. */
+export function htmlEstilo(css) {
+  return `<div data-t="estilo" data-css="${escAttrHtml(css)}" style="position:absolute;left:0px;top:0px;display:none"></div>`;
+}
+export const esEstilo = (h) => /data-t="estilo"/.test(h || '');
+
+export const CODIGO_EJEMPLO = 'def saludar(nombre):\n    mensaje = f"Hola, {nombre}"\n    return mensaje\n\nprint(saludar("mundo"))';
+
+/** Bloque de código con colores. El texto va dentro de un <pre>; los colores se generan al mostrarlo. */
+export function htmlCodigo(x, y, src = CODIGO_EJEMPLO, { lang = 'python', tema = 'oscuro', titulo = 'ejemplo.py', w = 760 } = {}) {
+  return `<div data-t="codigo" data-lang="${lang}" data-tema="${tema}" data-nums="1" data-barra="1" data-titulo="${escAttrHtml(titulo)}" ` +
+    `style="position:absolute;left:${x}px;top:${y}px;width:${w}px;font-size:24px"><pre>\n${escTexto(src)}</pre></div>`;
+}
+
 /** Fórmula LaTeX: solo se guarda el código; KaTeX la dibuja al mostrarla. */
 export function htmlFormula(x, y, tex, { size = 64, color = '#1c1f23', display = false } = {}) {
   const t = String(tex).replace(/"/g, '&quot;');
@@ -123,6 +141,7 @@ export function elementoNuevo(tipo, t = TEMAS.claro) {
   const tb = /^tabla:(\d+)x(\d+)$/.exec(tipo);
   if (tb) return htmlTabla(Math.min(30, +tb[1]), Math.min(12, +tb[2]), t);
   switch (tipo) {
+    case 'codigo': return htmlCodigo(240, 200);
     case 'linea-recta': return htmlLinea(380, 340, 520, t.ac, { puntas: 0 });
     case 'flecha-linea': return htmlLinea(380, 340, 520, t.ac, { puntas: 1 });
     case 'flecha-doble': return htmlLinea(380, 340, 520, t.ac, { puntas: 2 });
@@ -216,7 +235,16 @@ const ID_OK = /^e[a-z0-9]{3,24}$/;
 export function htmlDeNodo(nodo) {
   const c = nodo.cloneNode(true);
   for (const a of ['data-eid', 'contenteditable', 'spellcheck', 'data-sel']) c.removeAttribute(a);
-  if (c.getAttribute('data-t') === 'formula') c.replaceChildren(); // lo dibujado por KaTeX nunca se guarda
+  const tipo = c.getAttribute('data-t');
+  if (tipo === 'formula' || tipo === 'estilo') c.replaceChildren(); // lo dibujado (KaTeX, <style>) nunca se guarda
+  else if (tipo === 'codigo') {
+    const src = textoDeCodigo(c);
+    const pre = document.createElement('pre');
+    pre.textContent = '\n' + src; // el analizador HTML descarta el primer salto de línea de un <pre>
+    c.replaceChildren(pre);
+  }
+  c.classList.remove('visto'); // estado de las animaciones al presentar, no forma parte del contenido
+  if (!c.getAttribute('class')) c.removeAttribute('class');
   c.style.zIndex = '';
   if (!c.getAttribute('style')) c.removeAttribute('style');
   const limpio = limpiarRaiz(c, { quitados: 0 });
@@ -248,7 +276,17 @@ export function construirNodo(h, id, z) {
   n.style.position = 'absolute';
   n.style.zIndex = String(z);
   n.__h = h;
-  if (n.getAttribute('data-t') === 'formula') pintarFormula(n);
+  const tipo = n.getAttribute('data-t');
+  if (tipo === 'formula') pintarFormula(n);
+  else if (tipo === 'codigo') pintarCodigo(n);
+  else if (tipo === 'estilo') {
+    const css = n.getAttribute('data-css') || '';
+    const ns = nsDeCss(css);
+    n.dataset.ns = ns;
+    const st = document.createElement('style');
+    st.textContent = cssATexto(analizarCss(css), ns);
+    n.append(st);
+  }
   return n;
 }
 
@@ -262,15 +300,22 @@ export function idsOrdenados(slide) {
   return Object.keys(el).sort((a, b) => (el[a].z - el[b].z) || (a < b ? -1 : 1));
 }
 
+/** Los estilos propios de la diapositiva se limitan a su contenedor con data-ns. */
+function fijarNs(cont) {
+  const est = Array.from(cont.children).find((c) => c.dataset && c.dataset.t === 'estilo');
+  if (est && est.dataset.ns) cont.setAttribute('data-ns', est.dataset.ns); else cont.removeAttribute('data-ns');
+}
+
 /** Reconstruye por completo un contenedor .diap (miniaturas, presentar, imprimir). */
 export function pintarDiapositiva(cont, slide) {
   cont.replaceChildren();
   aplicarFondo(cont, slide && slide.bg);
-  if (!slide) return;
+  if (!slide) { fijarNs(cont); return; }
   for (const id of idsOrdenados(slide)) {
     const n = construirNodo(slide.el[id].h, id, slide.el[id].z);
     if (n) cont.appendChild(n);
   }
+  fijarNs(cont);
 }
 
 /** Actualiza el lienzo del editor tocando solo lo que cambió. */
@@ -291,6 +336,7 @@ export function reconciliar(stage, slide, ocupados = new Set()) {
     if (!n) continue;
     if (viejo) viejo.replaceWith(n); else stage.appendChild(n);
   }
+  fijarNs(stage);
 }
 
 // ── Geometría ───────────────────────────────────────────────────────────
@@ -365,8 +411,22 @@ function conId(id, h) {
   return abreviar(bonito(r.nodo, id), id);
 }
 
+/** Reglas CSS (ya filtradas) del elemento de estilo de la diapositiva, o ''. */
+function cssDeSlide(slide) {
+  for (const id of idsOrdenados(slide)) {
+    const h = slide.el[id].h;
+    if (!esEstilo(h)) continue;
+    const r = nodoDesdeHTML(h);
+    return r ? (r.nodo.getAttribute('data-css') || '') : '';
+  }
+  return '';
+}
+
 export function serializarCodigo(slide) {
-  const partes = idsOrdenados(slide).map((id) => conId(id, slide.el[id].h)).filter(Boolean);
+  const ids = idsOrdenados(slide);
+  const partes = ids.filter((id) => !esEstilo(slide.el[id].h)).map((id) => conId(id, slide.el[id].h)).filter(Boolean);
+  const css = cssDeSlide(slide);
+  if (css) partes.unshift(`<style>\n${cssBonito(analizarCss(css))}\n</style>`);
   const bg = String(slide.bg || '#ffffff').replace(/"/g, "'");
   return `<section style="background:${bg}">\n${partes.map((p) => sangrar(p, '  ')).join('\n\n')}\n</section>`;
 }
@@ -383,7 +443,6 @@ function parsearHtml(texto) {
 function avisosDe(texto) {
   const av = [];
   if (/<script/i.test(texto)) av.push('Los <script> no se permiten y se eliminaron.');
-  if (/<style/i.test(texto)) av.push('Las etiquetas <style> no se permiten: usa estilos en línea (style="…").');
   if (/\son[a-z]+\s*=/i.test(texto)) av.push('Se quitaron los atributos de eventos (onclick, etc.).');
   return av;
 }
@@ -393,6 +452,10 @@ export function parsearCodigo(texto, slide) {
   const previos = (slide && slide.el) || {};
   texto = restaurar(texto, previos);
   const body = parsearHtml(texto);
+  // <style> se admite solo con @keyframes y reglas simples; se guarda aparte como CSS de la diapositiva.
+  const estilos = Array.from(body.querySelectorAll('style'));
+  const cssTexto = estilos.map((s) => s.textContent).join('\n');
+  estilos.forEach((s) => s.remove());
   const hijosBody = Array.from(body.childNodes).filter((n) => n.nodeType === 1 || (n.nodeType === 3 && n.textContent.trim()));
   let bg = null;
   let hijos = hijosBody;
@@ -427,7 +490,20 @@ export function parsearCodigo(texto, slide) {
     usados.add(id);
     el[id] = { z: ++z, h };
   });
-  return { bg, el, quitados, avisos: avisosDe(texto) };
+  const avisos = avisosDe(texto);
+  const css = limpiarCss(cssTexto);
+  if (css) {
+    const previo = Object.keys(previos).find((k) => esEstilo(previos[k].h));
+    const idE = previo || nuevoId();
+    const h = limpiarHtmlElemento(htmlEstilo(css));
+    if (h) el[idE] = { z: previo ? previos[previo].z : 0, h };
+    if (analizarCss(cssTexto).length < (cssTexto.match(/\{/g) || []).length / 2) {
+      avisos.push('En <style> solo se permiten @keyframes y reglas con selectores simples; lo demás se quitó.');
+    }
+  } else if (cssTexto.trim()) {
+    avisos.push('En <style> solo se permiten @keyframes y reglas con selectores simples (sin @media ni @import).');
+  }
+  return { bg, el, quitados, avisos };
 }
 
 /** Interpreta el código de un solo elemento. Devuelve su nuevo HTML. */
@@ -461,7 +537,7 @@ function escapar(t) {
 export function htmlAutonomo(pres, slides, cssDiapositiva) {
   const secciones = slides.map((s) => {
     const d = document.createElement('div');
-    d.className = 'diap';
+    d.className = 'diap anima';
     pintarDiapositiva(d, s);
     return d.outerHTML;
   }).join('\n');
@@ -482,11 +558,14 @@ ${secciones}
 <div id="n"></div>
 <script>
 (function(){
-  var d=[].slice.call(document.querySelectorAll('.diap')),i=0,n=document.getElementById('n');
+  var d=[].slice.call(document.querySelectorAll('.diap')),i=0,v=0,n=document.getElementById('n');
+  function pa(){return [].slice.call(d[i].querySelectorAll('[data-disp="clic"]'))}
   function m(){var s=Math.min(innerWidth/1280,innerHeight/720);d.forEach(function(e,k){e.classList.toggle('act',k===i);e.style.transform='scale('+s+')'});n.textContent=(i+1)+' / '+d.length;history.replaceState(null,'','#'+(i+1))}
-  function ir(k){i=Math.max(0,Math.min(d.length-1,k));m()}
-  addEventListener('keydown',function(e){var t=e.key;if(['ArrowRight','ArrowDown',' ','PageDown','Enter'].indexOf(t)>-1){ir(i+1);e.preventDefault()}else if(['ArrowLeft','ArrowUp','PageUp','Backspace'].indexOf(t)>-1){ir(i-1);e.preventDefault()}else if(t==='Home')ir(0);else if(t==='End')ir(d.length-1);else if(t==='f'||t==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}});
-  addEventListener('click',function(e){ir(e.clientX<innerWidth*0.3?i-1:i+1)});
+  function ir(k,todo){i=Math.max(0,Math.min(d.length-1,k));var p=pa();p.forEach(function(x){x.classList.toggle('visto',!!todo)});v=todo?p.length:0;m()}
+  function sig(){var p=pa();if(v<p.length){p[v++].classList.add('visto')}else if(i<d.length-1)ir(i+1)}
+  function ant(){var p=pa();if(v>0){p[--v].classList.remove('visto')}else if(i>0)ir(i-1,true)}
+  addEventListener('keydown',function(e){var t=e.key;if(['ArrowRight','ArrowDown',' ','PageDown','Enter'].indexOf(t)>-1){sig();e.preventDefault()}else if(['ArrowLeft','ArrowUp','PageUp','Backspace'].indexOf(t)>-1){ant();e.preventDefault()}else if(t==='Home')ir(0);else if(t==='End')ir(d.length-1);else if(t==='f'||t==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}});
+  addEventListener('click',function(e){if(e.clientX<innerWidth*0.3)ant();else sig()});
   addEventListener('resize',m);
   var h=parseInt(location.hash.slice(1),10);if(h)i=h-1;ir(i);
 })();
